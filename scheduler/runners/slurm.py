@@ -1,9 +1,6 @@
-from scheduler import Scheduler, cd
+from scheduler.runners import BaseScheduler
 import subprocess as sb
 from _datetime import datetime
-import os
-import json
-import pickle
 import logging
 
 logger = logging.getLogger(__name__)
@@ -53,26 +50,25 @@ _slurm_map = {"CANCELLED": ['failed',
                           "Job terminated upon reaching its time limit."]}
 
 
-class Slurm(Scheduler):
+class Slurm(BaseScheduler):
 
-    def __init__(self, name="slurm",
+    def __init__(self, name,
                  interpreter="#!/bin/bash",
                  *args,
                  **kwargs):
+        if not name.startswith('slurm'):
+            name = 'slurm:' + name
         super().__init__(name, *args, **kwargs)
         self.interpreter = interpreter
 
     def _submit(self,
-                run_parallel,
-                run_header,
+                tasks,
                 scheduler_options):
         """
         Submit job
         Parameters
-            run_parallel: bool
-                to run the function in parallel
-            run_header: str or list
-                str or list of headers to be added
+            tasks: list
+                list of tasks to be added
             scheduler_options: dictionary
                 dictionary of headers to be added
         Returns
@@ -83,6 +79,7 @@ class Slurm(Scheduler):
         """
         # default values
         job_id = None
+
         log_msg = ('{}\nSubmission using {} scheduler\n'
                    ''.format(datetime.now(),
                              self.name))
@@ -93,17 +90,11 @@ class Slurm(Scheduler):
                                      "=" if key.startswith('--') else " ",
                                      value))
 
-        # header scripts
-        run_script += '\n'
-        run_script += ('{}'.format(run_header) if isinstance(run_header,
-                                                             str)
-                       else '\n'.join(map(str, run_header)))
         run_script += '\n'
 
-        run_script += ('srun ' if run_parallel else '')
+        # add tasks
+        run_script += '\n'.join(tasks)
 
-        run_script += "python3 run.py" 
-        
         with open('batch.slrm', 'w') as f:
             f.write(run_script)
 
@@ -152,7 +143,7 @@ class Slurm(Scheduler):
                          for x in out.stdout.decode('utf-8').split('\n')]
         end_time = formatted_out[1][2].replace('T', ' ')
         cpu_time = formatted_out[1][4]
-        
+
         # slurm state of the job
         state_list = [x[1].split()[0] for x in formatted_out[1:-1]]
         # scheduler status of the job
@@ -163,21 +154,23 @@ class Slurm(Scheduler):
             except KeyError:
                 status = 'failed'
                 log_msg += ('{}\n Undefined slurm state:{}\n'
-                           ''.format(end_time,
-                                     state))
+                            ''.format(end_time,
+                                      state))
                 return status, log_msg
 
         if 'failed' in status_list:
             state = state_list[status_list.index('failed')]
             status = 'failed'
             log_msg += '{}\n{} {}\n'.format(end_time,
-                                           state,
-                                           _slurm_map[state][1])
+                                            state,
+                                            _slurm_map[state][1])
         elif 'running' in status_list:
             status = 'running'
             log_msg += ''
         else:
             # done
             status = 'done'
-            log_msg += '{}\n Job finished'.format(end_time)
-        return status, log_msg
+            log_msg += '{}\n Job finished.\nWall time={}'.format(end_time,
+                                                                 cpu_time)
+
+        return '{}:{}'.format(status, self.name), log_msg
