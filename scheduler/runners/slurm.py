@@ -54,12 +54,25 @@ class Slurm(BaseScheduler):
 
     def __init__(self, name,
                  interpreter="#!/bin/bash",
+                 scheduler_options=None,
                  *args,
                  **kwargs):
+        """
+        Slurm runner
+        Parameters
+            name: str
+                name of the runner
+            interpreter: str
+                the interpreter for the shell
+            scheduler_options: dict
+                scheduler_options of slurm (#SBATCH) local to the system
+        """
         if not name.startswith('slurm'):
             name = 'slurm:' + name
         super().__init__(name, *args, **kwargs)
         self.interpreter = interpreter
+        if scheduler_options is None:
+            self.scheduler_options = {}
 
     def _submit(self,
                 tasks,
@@ -83,7 +96,11 @@ class Slurm(BaseScheduler):
         log_msg = ('{}\nSubmission using {} scheduler\n'
                    ''.format(datetime.now(),
                              self.name))
+        # add interpreter
         run_script = "{}\n".format(self.interpreter)
+
+        # add SBATCH options
+        scheduler_options.update(self.scheduler_options)
         for key, value in scheduler_options.items():
             run_script += ("#SBATCH {}{}{}\n"
                            "".format(key,
@@ -127,8 +144,6 @@ class Slurm(BaseScheduler):
         Returns
             status: str
                 status of the job id
-            atoms: Atoms object
-                The atoms object to update the database
             log_msg: str
                 log message of the last change
         """

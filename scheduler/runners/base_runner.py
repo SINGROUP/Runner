@@ -129,8 +129,6 @@ class BaseRunner():
         Returns
             status: str
                 status of the job id
-            atoms: Atoms object
-                The atoms object to update the database
             log_msg: str
                 log message of the last change
         """
@@ -395,8 +393,7 @@ with open("atoms.pkl", "wb") as f:
                                 py_run += 1
 
                         if status.startswith('submit'):
-                            job_id, log_msg = self._submit(atoms,
-                                                           run_scripts,
+                            job_id, log_msg = self._submit(run_scripts,
                                                            scheduler_options)
                             if job_id:
                                 logger.debug('submitting success {}'
