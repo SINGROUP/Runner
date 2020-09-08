@@ -1,4 +1,4 @@
-from scheduler.runners import BaseScheduler
+from scheduler.runners import BaseRunner
 import subprocess as sb
 from _datetime import datetime
 import logging
@@ -18,7 +18,7 @@ stream_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
-class Terminal(BaseScheduler):
+class TerminalRunner(BaseRunner):
     def __init__(self,
                  name,
                  database="database.db",

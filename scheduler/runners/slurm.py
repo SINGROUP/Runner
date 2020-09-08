@@ -1,4 +1,4 @@
-from scheduler.runners import BaseScheduler
+from scheduler.runners import BaseRunner
 import subprocess as sb
 from _datetime import datetime
 import logging
@@ -50,7 +50,7 @@ _slurm_map = {"CANCELLED": ['failed',
                           "Job terminated upon reaching its time limit."]}
 
 
-class Slurm(BaseScheduler):
+class SlurmRunner(BaseRunner):
 
     def __init__(self,
                  name,

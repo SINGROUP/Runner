@@ -341,6 +341,8 @@ class BaseRunner():
                     if fdb.get(i).status.startswith('done'):
                         parents_done = False
                         break
+                    # !TODO: catch exception if user does not have permission
+                    # to read parent
                     parent = fdb.get_atoms(i, add_additional_information=True)
                     atoms.append(parent)
 
