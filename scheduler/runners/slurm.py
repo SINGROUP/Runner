@@ -52,27 +52,56 @@ _slurm_map = {"CANCELLED": ['failed',
 
 class Slurm(BaseScheduler):
 
-    def __init__(self, name,
+    def __init__(self,
+                 name,
+                 database="database.db",
                  interpreter="#!/bin/bash",
                  scheduler_options=None,
-                 *args,
-                 **kwargs):
+                 tasks=None,
+                 files=None,
+                 max_jobs=50,
+                 cycle_time=30,
+                 keep_run=False,
+                 run_folder='./',
+                 multi_fail=0):
         """
         Slurm runner
         Parameters
-            name: str
-                name of the runner
+            database: ASE database
+                the database to connect
             interpreter: str
                 the interpreter for the shell
             scheduler_options: dict
-                scheduler_options of slurm (#SBATCH) local to the system
+                scheduler_options local to the system
+            tasks: list
+                pre-tasks local to the system
+            files: dict
+                pre-tasks files local to the system
+            max_jobs: int
+                maximum number of jobs running at an instance
+            cycle_time: int
+                time in seconds
+            keep_run: bool
+                keep the folder in which the run was performed
+            run_folder: str
+                the folder that needs to be populated
+            multi_fail: int
+                The number of re-runs on failure
         """
         if not name.startswith('slurm'):
             name = 'slurm:' + name
-        super().__init__(name, *args, **kwargs)
-        self.interpreter = interpreter
-        if scheduler_options is None:
-            self.scheduler_options = {}
+        super().__init__(name=name,
+                         database=database,
+                         interpreter=interpreter,
+                         scheduler_options=scheduler_options,
+                         tasks=tasks,
+                         files=files,
+                         max_jobs=max_jobs,
+                         cycle_time=cycle_time,
+                         keep_run=keep_run,
+                         run_folder=run_folder,
+                         multi_fail=multi_fail,
+                        )
 
     def _submit(self,
                 tasks,
@@ -100,7 +129,6 @@ class Slurm(BaseScheduler):
         run_script = "{}\n".format(self.interpreter)
 
         # add SBATCH options
-        scheduler_options.update(self.scheduler_options)
         for key, value in scheduler_options.items():
             run_script += ("#SBATCH {}{}{}\n"
                            "".format(key,

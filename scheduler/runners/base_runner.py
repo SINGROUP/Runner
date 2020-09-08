@@ -44,6 +44,10 @@ class BaseRunner():
     def __init__(self,
                  name,
                  database="database.db",
+                 interpreter="#!/bin/bash",
+                 scheduler_options=None,
+                 tasks=None,
+                 files=None,
                  max_jobs=50,
                  cycle_time=30,
                  keep_run=False,
@@ -54,6 +58,14 @@ class BaseRunner():
         Parameters
             database: ASE database
                 the database to connect
+            interpreter: str
+                the interpreter for the shell
+            scheduler_options: dict
+                scheduler_options local to the system
+            tasks: list
+                pre-tasks local to the system
+            files: dict
+                pre-tasks files local to the system
             max_jobs: int
                 maximum number of jobs running at an instance
             cycle_time: int
@@ -73,6 +85,23 @@ class BaseRunner():
         self.keep_run = keep_run
         self.run_folder = os.path.abspath(run_folder)
         self.multi_fail = multi_fail
+        self.interpreter = interpreter
+
+        scheduler = {}
+        if scheduler_options is not None:
+            scheduler['scheduler_options'] = scheduler_options
+        if tasks is not None:
+            scheduler['tasks'] = tasks
+        if files is not None:
+            scheduler['files'] = files
+        (scheduler_options, parents, tasks, files, success,
+         log) = get_scheduler_data(row.data)
+        if not success:
+            raise RuntimeError(log)
+
+        self.tasks = tasks
+        self.scheduler_options = scheduler_options
+        self.files = files
 
     def get_job_id(self, id_):
         """
@@ -274,12 +303,12 @@ class BaseRunner():
                     break
                 # get relevant data form atoms
                 logger.debug('get scheduler data')
-                (scheduler_options, parents, tasks, files,
-                 log) = get_scheduler_data(row.data)
+                (scheduler_options, parents, tasks, files, success,
+                 log) = get_scheduler_data(row.data.get('scheduler', None))
 
                 # if error in scheduler data
-                if tasks is None:
-                    logger.info('scheduler data corrupt')
+                if not success or len(tasks) == 0:
+                    logger.info('scheduler data corrupt/missing')
                     # job failed if no scheduler info
                     _ = scheduler_options or {}
                     _.update({'log': '{}\n{}\n'
@@ -290,6 +319,11 @@ class BaseRunner():
                                status='failed:{}'.format(self.name),
                                data=row.data)
                     continue
+
+                # add local scheduler things
+                scheduler_options.update(self.scheduler_options)
+                files.update(self.files)
+                tasks = self.tasks + tasks # prior execution of local tasks
 
                 # get self and parents atoms object with everything
                 logger.debug('getting atoms and parents')
@@ -307,7 +341,8 @@ class BaseRunner():
                     if fdb.get(i).status.startswith('done'):
                         parents_done = False
                         break
-                    atoms.append(fdb.get_atoms(i))
+                    parent = fdb.get_atoms(i, add_additional_information=True)
+                    atoms.append(parent)
 
                 if not parents_done:
                     logger.debug('parents pending')
@@ -556,6 +591,10 @@ def get_scheduler_data(data):
             success = False
             log += 'Scheduler: tasks should be a list\n'
         else:
+            if len(tasks) == 0:
+                # true if no tasks given on init
+                # only an error if found during spooling
+                log += "Scheduler: tasks empty"
             for i in range(len(tasks)):
                 task = tasks[i]
                 if str(task[0]) == 'shell' or str(task[0]).endswith('python'):
@@ -587,7 +626,4 @@ def get_scheduler_data(data):
                             log += ('Scheduler: python parameters should'
                                     ' be either list of dict')
 
-    if success:
-        return (scheduler_options, parents, tasks, files, log)
-    else:
-        return (data, None, None, None, log)
+    return (scheduler_options, parents, tasks, files, success, log)
