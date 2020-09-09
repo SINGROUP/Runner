@@ -312,7 +312,7 @@ class BaseRunner():
                 if not success or len(tasks) == 0:
                     logger.info('scheduler data corrupt/missing')
                     # job failed if no scheduler info
-                    _ = scheduler_options or {}
+                    _ = row.data.get('scheduler', None) or {}
                     _.update({'log': '{}\n{}\n'
                                      ''.format(datetime.now(), log),
                               'fail_count': self.multi_fail + 1})
@@ -380,6 +380,7 @@ class BaseRunner():
                                 # python run
                                 shell_run = task[0]
                                 shell_run += ' run{}.py'.format(py_run)
+                                shell_run += ' > run{}.out'.format(py_run)
                                 run_scripts.append(shell_run)
 
                                 params = task[1][1]
@@ -569,13 +570,17 @@ def get_scheduler_data(data):
     """
     success = True
     log = '{}\n'.format(datetime.now())
-    data = data.get('scheduler', None)
+    scheduler_options = {}
+    name = ''
+    parents = []
+    tasks = []
+    files = {}
 
     if data is None:
         success = False
         log += 'No scheduler data\n'
     else:
-        scheduler_options = data.get('scheduler_options', None)
+        scheduler_options = data.get('scheduler_options', {})
         name = str(data.get('name', 'Calculation'))
         parents = data.get('parents', [])
         tasks = data.get('tasks', [])
@@ -607,10 +612,6 @@ def get_scheduler_data(data):
             for i in range(len(tasks)):
                 task = tasks[i]
                 if str(task[0]) == 'shell' or str(task[0]).endswith('python'):
-                    success = False
-                    log += ("Scheduler: task should either be 'shell' or "
-                            "'<optional prefix> python'\n")
-
                     if task[0].endswith('python'):
                         if isinstance(task[1], str):
                             # add empty params
@@ -619,20 +620,20 @@ def get_scheduler_data(data):
                             success = False
                             log += ('Scheduler: python task should be a list '
                                     'with file string and parameters\n')
-                        elif len(task[1]) == 0:
+                        elif len(task[1]) == 0 or len(task[1]) > 2:
                             success = False
                             log += ('Scheduler: python task should be a list '
                                     'with file string and parameters\n')
                         elif len(task[1]) == 1:
                             # add empty params
                             task[1] = [task[1], []]
-                        elif len(task[1]) > 2:
-                            success = False
-                            log += ('Scheduler: python task should be a list '
-                                    'with file string and parameters\n')
-                        elif isinstance(task[1][1], (list, tuple, dict)):
+                        elif not isinstance(task[1][1], (list, tuple, dict)):
                             success = False
                             log += ('Scheduler: python parameters should'
-                                    ' be either list of dict')
+                                    ' be either list or dict')
+                else:
+                    success = False
+                    log += ("Scheduler: task should either be 'shell' or "
+                            "'<optional prefix> python'\n")
 
     return (scheduler_options, name, parents, tasks, files, success, log)
