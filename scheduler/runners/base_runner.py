@@ -1,4 +1,5 @@
 from ase import db
+from ase import Atoms
 import time
 import os
 from datetime import datetime
@@ -94,8 +95,8 @@ class BaseRunner():
             scheduler['tasks'] = tasks
         if files is not None:
             scheduler['files'] = files
-        (scheduler_options, parents, tasks, files, success,
-         log) = get_scheduler_data(row.data)
+        (scheduler_options, name, parents, tasks, files, success,
+         log) = get_scheduler_data(scheduler)
         if not success:
             raise RuntimeError(log)
 
@@ -205,13 +206,14 @@ class BaseRunner():
                             # !TODO: remove reliance on pickle
                             with open('atoms.pkl', 'rb') as f:
                                 atoms = pickle.load(f)
+                            # make sure atoms is not list
+                            if isinstance(atoms, list):
+                                atoms = atoms[0]
+                            assert isinstance(atoms, Atoms)
                         except:
                             status = 'failed:{}'.format(self.name)
                             log_msg += ('{}\n Unpickling failed\n'
                                         ''.format(datetime.now()))
-                # make sure atoms is not list
-                if isinstance(atoms, list):
-                    atoms = atoms[0]
             # run post-tasks
             if status.startswith('done'):
                 logger.debug('status: done')
@@ -303,7 +305,7 @@ class BaseRunner():
                     break
                 # get relevant data form atoms
                 logger.debug('get scheduler data')
-                (scheduler_options, parents, tasks, files, success,
+                (scheduler_options, name, parents, tasks, files, success,
                  log) = get_scheduler_data(row.data.get('scheduler', None))
 
                 # if error in scheduler data
@@ -323,7 +325,7 @@ class BaseRunner():
                 # add local scheduler things
                 scheduler_options.update(self.scheduler_options)
                 files.update(self.files)
-                tasks = self.tasks + tasks # prior execution of local tasks
+                tasks = self.tasks + tasks  # prior execution of local tasks
 
                 # get self and parents atoms object with everything
                 logger.debug('getting atoms and parents')
@@ -450,7 +452,8 @@ with open("atoms.pkl", "wb") as f:
                         _ = data['scheduler'].get('log', '') + log_msg
                         data['scheduler']['log'] = _
                         logger.debug('updating database')
-                        fdb.update(id_, status=status, data=data)
+                        # adds status, name of calculation, and data
+                        fdb.update(id_, status=status, name=name, data=data)
                 logger.info('ID {} submission: '
                             '{}'.format(id_,
                                         (status if status == 'failed' else
@@ -543,6 +546,7 @@ def get_scheduler_data(data):
                                'tot_cores': 16,
                                'time': '0:5:0:0',
                                'mem': 2000},
+         'name': '<calculation name>',
          'parents': [],
          'tasks': [['python', ['<script>', <params>]], # python run
                    ['mpirun -n 4  python', ['<script>', <params>]], # parallel
@@ -554,6 +558,8 @@ def get_scheduler_data(data):
     Returns
         scheduler_options: dict
             containing all options to run a job
+        name: str
+            name of the calculation, for tags
         parents: list
             list of parents attached to the present job
         tasks: list
@@ -570,6 +576,7 @@ def get_scheduler_data(data):
         log += 'No scheduler data\n'
     else:
         scheduler_options = data.get('scheduler_options', None)
+        name = str(data.get('name', 'Calculation'))
         parents = data.get('parents', [])
         tasks = data.get('tasks', [])
         files = data.get('files', {})
@@ -628,4 +635,4 @@ def get_scheduler_data(data):
                             log += ('Scheduler: python parameters should'
                                     ' be either list of dict')
 
-    return (scheduler_options, parents, tasks, files, success, log)
+    return (scheduler_options, name, parents, tasks, files, success, log)
