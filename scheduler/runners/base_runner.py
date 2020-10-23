@@ -1,13 +1,18 @@
-from ase import db
-from ase import Atoms
-import time
-import os
-from datetime import datetime
-from abc import abstractmethod
+"""
+Base runner for different runnners
+"""
+
 import shutil
 import pickle
 import json
 import logging
+import time
+import os
+from datetime import datetime
+from abc import ABC, abstractmethod
+from ase import db
+from ase import Atoms
+from .utils import get_scheduler_data, Cd, run_py
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -25,22 +30,7 @@ logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
 
-class cd:
-    """Context manager for changing the current working directory"""
-    def __init__(self, new_path, mkdir=True):
-        self.new_path = os.path.expanduser(new_path)
-        if not os.path.exists(new_path) and mkdir:
-            os.mkdir(new_path)
-
-    def __enter__(self):
-        self.saved_path = os.getcwd()
-        os.chdir(self.new_path)
-
-    def __exit__(self, etype, value, traceback):
-        os.chdir(self.saved_path)
-
-
-class BaseRunner():
+class BaseRunner(ABC):
 
     def __init__(self,
                  name,
@@ -109,10 +99,10 @@ class BaseRunner():
         Returns job_id of id_
         """
         try:
-            with cd(self.run_folder, mkdir=False):
-                with cd(str(id_), mkdir=False):
-                    with open('job.id') as f:
-                        job_id = f.readline().strip()
+            with Cd(self.run_folder, mkdir=False):
+                with Cd(str(id_), mkdir=False):
+                    with open('job.id') as file_o:
+                        job_id = file_o.readline().strip()
             return job_id
         except FileNotFoundError:
             return None
@@ -134,7 +124,7 @@ class BaseRunner():
             log_msg: str
                 log message of the run
         """
-        raise NotImplementedError()
+        pass
 
     @abstractmethod
     def _cancel(self, job_id):
@@ -147,7 +137,7 @@ class BaseRunner():
         Returns
             None
         """
-        raise NotImplementedError()
+        pass
 
     @abstractmethod
     def _status(self, job_id):
@@ -162,7 +152,7 @@ class BaseRunner():
             log_msg: str
                 log message of the last change
         """
-        raise NotImplementedError()
+        pass
 
     def _update_status_running(self):
         """
@@ -179,8 +169,8 @@ class BaseRunner():
                 if job_id:
                     logger.debug('job_id success; getting status')
                     # !TODO: update scheduler options with cpu usage
-                    with cd(self.run_folder, mkdir=False):
-                        with cd(str(id_), mkdir=False):
+                    with Cd(self.run_folder, mkdir=False):
+                        with Cd(str(id_), mkdir=False):
                             status, log_msg = self._status(job_id)
                 else:
                     # oops
@@ -200,17 +190,17 @@ class BaseRunner():
                          ''.format(id_))
 
             if status.startswith('done'):
-                with cd(self.run_folder, mkdir=False):
-                    with cd(str(id_), mkdir=False):
+                with Cd(self.run_folder, mkdir=False):
+                    with Cd(str(id_), mkdir=False):
                         try:
                             # !TODO: remove reliance on pickle
-                            with open('atoms.pkl', 'rb') as f:
-                                atoms = pickle.load(f)
+                            with open('atoms.pkl', 'rb') as file_o:
+                                atoms = pickle.load(file_o)
                             # make sure atoms is not list
                             if isinstance(atoms, list):
                                 atoms = atoms[0]
                             assert isinstance(atoms, Atoms)
-                        except:
+                        except Exception:
                             status = 'failed:{}'.format(self.name)
                             log_msg += ('{}\n Unpickling failed\n'
                                         ''.format(datetime.now()))
@@ -237,7 +227,7 @@ class BaseRunner():
                                **key_value_pairs)
                 # delete run if keep_run is False
                 if not self.keep_run:
-                    with cd(self.run_folder):
+                    with Cd(self.run_folder):
                         if str(id_) in os.listdir():
                             shutil.rmtree(str(id_))
             else:
@@ -312,7 +302,7 @@ class BaseRunner():
                 if not success or len(tasks) == 0:
                     logger.info('scheduler data corrupt/missing')
                     # job failed if no scheduler info
-                    _ = row.data.get('scheduler', None) or {}
+                    _ = row.data.get('scheduler', {})
                     _.update({'log': '{}\n{}\n'
                                      ''.format(datetime.now(), log),
                               'fail_count': self.multi_fail + 1})
@@ -340,98 +330,33 @@ class BaseRunner():
                 # if any parent is not done, then don't submit
                 parents_done = True
                 for i in parents:
-                    if fdb.get(i).status.startswith('done'):
+                    parent_row = fdb.get(i)
+                    if not parent_row.status.startswith('done'):
                         parents_done = False
                         break
                     # !TODO: catch exception if user does not have permission
                     # to read parent
-                    parent = fdb.get_atoms(i, add_additional_information=True)
+                    _ = parent_row.toatoms(add_additional_information=True)
+                    parent = _
                     atoms.append(parent)
 
                 if not parents_done:
                     logger.debug('parents pending')
                     continue
 
-                with cd(self.run_folder):
-                    with cd(str(id_)):
+                with Cd(self.run_folder):
+                    with Cd(str(id_)):
                         # submitting task
                         logger.debug('submitting {}'.format(id_))
 
-                        # write files
-                        for i, string in files.items():
-                            with open(i, 'w') as f:
-                                f.write(string)
-
-                        # write atoms
-                        with open('atoms.pkl', 'wb') as f:
-                            pickle.dump(atoms, f)
-
                         # preparing run script
-                        run_scripts = []
-                        py_run = 0
-                        for task in tasks:
-                            # if task is a shell
-                            if task[0] == 'shell':
-                                shell_run = task[1]
-                                if isinstance(shell_run, list):
-                                    shell_run = ' '.join(shell_run)
-                                run_scripts.append(shell_run)
-                            elif task[0].endswith('python'):
-                                # python run
-                                shell_run = task[0]
-                                shell_run += ' run{}.py'.format(py_run)
-                                shell_run += ' > run{}.out'.format(py_run)
-                                run_scripts.append(shell_run)
-
-                                params = task[1][1]
-                                if isinstance(params, (tuple, list)):
-                                    astr = '*'
-                                elif isinstance(params, dict):
-                                    astr = '**'
-                                # write params
-                                try:
-                                    with open('params{}.json'.format(py_run),
-                                              'w') as f:
-                                        json.dump(params, f)
-                                except TypeError as e:
-                                    status = 'failed'
-                                    log_msg = ('{}\n Error writing params: '
-                                               '{}\n'.format(datetime.now(),
-                                                             e.args[0]))
-                                # making python executable
-                                run_py = """import json
-import pickle
-from ase.atoms import Atoms
-
-{func}
-
-def json_keys2int(x):
-    # if dict key can be converted to int
-    # then convert to int
-    if isinstance(x, dict):
-        try:
-            return {{int(k):v for k,v in x.items()}}
-        except ValueError:
-            pass
-    return x
-
-with open("params{ind}.json") as f:
-    params = json.load(f, object_hook=json_keys2int)
-with open("atoms.pkl", "rb") as f:
-    atoms = pickle.load(f)
-atoms = main(atoms, {astr}params)
-with open("atoms.pkl", "wb") as f:
-    pickle.dump(atoms, f)
-                                """.format(func=task[1][0],
-                                           ind=py_run,
-                                           astr=astr)
-
-                                with open('run{}.py'.format(py_run), 'w') as f:
-                                    f.write(run_py)
-
-                                # increment py_run
-                                py_run += 1
-
+                        (run_scripts,
+                         status,
+                         log_msg) = self._write_run_data(atoms,
+                                                         tasks,
+                                                         files,
+                                                         status,
+                                                         log_msg)
                         if status.startswith('submit'):
                             job_id, log_msg = self._submit(run_scripts,
                                                            scheduler_options)
@@ -440,8 +365,8 @@ with open("atoms.pkl", "wb") as f:
                                              ''.format(job_id))
                                 # update status and save job_id
                                 status = 'running:{}'.format(self.name)
-                                with open('job.id', 'w') as f:
-                                    f.write('{}'.format(job_id))
+                                with open('job.id', 'w') as file_o:
+                                    file_o.write('{}'.format(job_id))
                                 sent_jobs += 1
                             else:
                                 logger.debug('submitting failed {}'
@@ -459,6 +384,60 @@ with open("atoms.pkl", "wb") as f:
                             '{}'.format(id_,
                                         (status if status == 'failed' else
                                          'successful')))
+
+    def _write_run_data(self, atoms, tasks, files, status, log_msg):
+        """
+        writes run data in the folder for excecution
+        """
+        # write files
+        for i, string in files.items():
+            with open(i, 'w') as file_o:
+                file_o.write(string)
+
+        # write atoms
+        with open('atoms.pkl', 'wb') as file_o:
+            pickle.dump(atoms, file_o)
+
+        # write run scripts
+        run_scripts = []
+        py_run = 0
+        for task in tasks:
+            # if task is a shell
+            if task[0] == 'shell':
+                shell_run = task[1]
+                if isinstance(shell_run, list):
+                    shell_run = ' '.join(shell_run)
+                run_scripts.append(shell_run)
+            elif task[0].endswith('python'):
+                # python run
+                shell_run = task[0]
+                shell_run += ' run{}.py'.format(py_run)
+                shell_run += ' > run{}.out'.format(py_run)
+                run_scripts.append(shell_run)
+
+                params = task[1][1]
+                if isinstance(params, (tuple, list)):
+                    astr = '*'
+                elif isinstance(params, dict):
+                    astr = '**'
+                # write params
+                try:
+                    with open('params{}.json'.format(py_run), 'w') as file_o:
+                        json.dump(params, file_o)
+                except TypeError as err:
+                    status = 'failed:{}'.format(self.name)
+                    log_msg = ('{}\n Error writing params: '
+                               '{}\n'.format(datetime.now(),
+                                             err.args[0]))
+                    break
+                # making python executable
+                with open('run{}.py'.format(py_run), 'w') as file_o:
+                    file_o.write(run_py.format(func=task[1][0],
+                                               ind=py_run,
+                                               astr=astr))
+            py_run += 1
+
+        return run_scripts, status, log_msg
 
     def _cancel_run(self):
         """
@@ -537,103 +516,3 @@ with open("atoms.pkl", "wb") as f:
             if 'STOP' in os.listdir(self.run_folder):
                 logger.info('STOP file found; stopping')
                 break
-
-
-def get_scheduler_data(data):
-    """
-    helper function to get complete scheduler data
-    Example:
-        {'scheduler_options': {'nodes': 1,
-                               'tot_cores': 16,
-                               'time': '0:5:0:0',
-                               'mem': 2000},
-         'name': '<calculation name>',
-         'parents': [],
-         'tasks': [['python', ['<script>', <params>]], # python run
-                   ['mpirun -n 4  python', ['<script>', <params>]], # parallel
-                   ['shell', '<command>']] # any shell command
-         'log': ''}
-    Parameters
-        data: dict
-            scheduler data in atoms data
-    Returns
-        scheduler_options: dict
-            containing all options to run a job
-        name: str
-            name of the calculation, for tags
-        parents: list
-            list of parents attached to the present job
-        tasks: list
-            list of tasks to perform
-        files: dict
-            dictionary of filenames as key and strings as value
-    """
-    success = True
-    log = '{}\n'.format(datetime.now())
-    scheduler_options = {}
-    name = ''
-    parents = []
-    tasks = []
-    files = {}
-
-    if data is None:
-        success = False
-        log += 'No scheduler data\n'
-    else:
-        scheduler_options = data.get('scheduler_options', {})
-        name = str(data.get('name', 'Calculation'))
-        parents = data.get('parents', [])
-        tasks = data.get('tasks', [])
-        files = data.get('files', {})
-        log_msg = data.get('log', '')
-        log = log_msg + log
-
-        if not isinstance(parents, (list, tuple)):
-            success = False
-            log += 'Scheduler: Parents should be a list of int\n'
-        else:
-            for i in parents:
-                if isinstance(i, int):
-                    log += 'Scheduler: parents should be a list of int\n'
-                    success = False
-
-        if not isinstance(files, dict):
-            success = False
-            log += 'Scheduler: files should be a dictionary\n'
-
-        if not isinstance(tasks, (list, tuple)):
-            success = False
-            log += 'Scheduler: tasks should be a list\n'
-        else:
-            if len(tasks) == 0:
-                # true if no tasks given on init
-                # only an error if found during spooling
-                log += "Scheduler: tasks empty"
-            for i in range(len(tasks)):
-                task = tasks[i]
-                if str(task[0]) == 'shell' or str(task[0]).endswith('python'):
-                    if task[0].endswith('python'):
-                        if isinstance(task[1], str):
-                            # add empty params
-                            task[1] = [task[1], []]
-                        elif not isinstance(task[1], (list, tuple)):
-                            success = False
-                            log += ('Scheduler: python task should be a list '
-                                    'with file string and parameters\n')
-                        elif len(task[1]) == 0 or len(task[1]) > 2:
-                            success = False
-                            log += ('Scheduler: python task should be a list '
-                                    'with file string and parameters\n')
-                        elif len(task[1]) == 1:
-                            # add empty params
-                            task[1] = [task[1], []]
-                        elif not isinstance(task[1][1], (list, tuple, dict)):
-                            success = False
-                            log += ('Scheduler: python parameters should'
-                                    ' be either list or dict')
-                else:
-                    success = False
-                    log += ("Scheduler: task should either be 'shell' or "
-                            "'<optional prefix> python'\n")
-
-    return (scheduler_options, name, parents, tasks, files, success, log)
