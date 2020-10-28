@@ -9,8 +9,7 @@ run_py = """
 import json
 import pickle
 from ase.atoms import Atoms
-
-{func}
+from {func} import main
 
 def json_keys2int(x):
     # if dict key can be converted to int

@@ -391,7 +391,8 @@ class BaseRunner(ABC):
         """
         # write files
         for i, string in files.items():
-            with open(i, 'w') as file_o:
+            write_mode = ('wb' if isinstance(string, bytes) else 'w')
+            with open(i, write_mode) as file_o:
                 file_o.write(string)
 
         # write atoms
@@ -431,8 +432,11 @@ class BaseRunner(ABC):
                                              err.args[0]))
                     break
                 # making python executable
+                func_name = task[1][0]
+                func_name = (func_name[:-3] if func_name.endswith('.py') else
+                             func_name)
                 with open('run{}.py'.format(py_run), 'w') as file_o:
-                    file_o.write(run_py.format(func=task[1][0],
+                    file_o.write(run_py.format(func=func_name,
                                                ind=py_run,
                                                astr=astr))
             py_run += 1
