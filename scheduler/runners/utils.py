@@ -35,15 +35,18 @@ def get_scheduler_data(data):
     """
     helper function to get complete scheduler data
     Example:
-        {'scheduler_options': {'nodes': 1,
-                               'tot_cores': 16,
-                               'time': '0:5:0:0',
-                               'mem': 2000},
+        {'scheduler_options': {'-N': 1,
+                               '-n': 16,
+                               '-t': '0:5:0:0',
+                               '--mem-per-cpu': 2000},
          'name': '<calculation name>',
          'parents': [],
-         'tasks': [['python', ['<script>', <params>]], # python run
-                   ['mpirun -n 4  python', ['<script>', <params>]], # parallel
+         'tasks': [['python', ['<filename>', <params>]], # python run
+                   ['mpirun -n 4  python', ['<filename>', <params>]], #parallel
                    ['shell', '<command>']] # any shell command
+         'files': {'<filename1>': '<contents, string or bytes>',
+                   '<filename2>': '<contents, string or bytes>'
+                  }
          'log': ''}
     Parameters
         data: dict
