@@ -279,20 +279,24 @@ class BaseRunner(ABC):
         '''
         submits runs
         '''
+        ids_ = []
         with db.connect(self.db) as fdb:
             len_running = fdb.count(status='running:{}'.format(self.name))
-            # submiting pending jobs
-            sent_jobs = 0
             for row in fdb.select(status='submit:{}'.format(self.name)):
-                id_ = row.id
-                logger.debug('submit {}'.format(id_))
-                # default status, no submission if changes
-                status = 'submit:{}'.format(self.name)
-                log_msg = ''
-                # break if running jobs exceed
-                if sent_jobs >= self.max_jobs - len_running:
-                    logger.debug('max jobs; break')
-                    break
+                ids_.append(row.id)
+        # submiting pending jobs
+        sent_jobs = 0
+        for id_ in ids_:
+            logger.debug('submit {}'.format(id_))
+            # default status, no submission if changes
+            status = 'submit:{}'.format(self.name)
+            log_msg = ''
+            # break if running jobs exceed
+            if sent_jobs >= self.max_jobs - len_running:
+                logger.debug('max jobs; break')
+                break
+            with db.connect(self.db) as fdb:
+                row = fdb.get(id_)
                 # get relevant data form atoms
                 logger.debug('get scheduler data')
                 (scheduler_options, name, parents, tasks, files, success,
@@ -312,13 +316,15 @@ class BaseRunner(ABC):
                                data=row.data)
                     continue
 
-                # add local scheduler things
-                scheduler_options.update(self.scheduler_options)
-                files.update(self.files)
-                tasks = self.tasks + tasks  # prior execution of local tasks
+            # add local scheduler things
+            scheduler_options.update(self.scheduler_options)
+            files.update(self.files)
+            tasks = self.tasks + tasks  # prior execution of local tasks
 
-                # get self and parents atoms object with everything
-                logger.debug('getting atoms and parents')
+            # get self and parents atoms object with everything
+            logger.debug('getting atoms and parents')
+            with db.connect(self.db) as fdb:
+                row = fdb.get(id_)
                 atoms = []
                 try:
                     atoms.append(row.toatoms(attach_calculator=True,
@@ -340,50 +346,52 @@ class BaseRunner(ABC):
                     parent = _
                     atoms.append(parent)
 
-                if not parents_done:
-                    logger.debug('parents pending')
-                    continue
+            if not parents_done:
+                logger.debug('parents pending')
+                continue
 
-                with Cd(self.run_folder):
-                    with Cd(str(id_)):
-                        # submitting task
-                        logger.debug('submitting {}'.format(id_))
+            with Cd(self.run_folder):
+                with Cd(str(id_)):
+                    # submitting task
+                    logger.debug('submitting {}'.format(id_))
 
-                        # preparing run script
-                        (run_scripts,
-                         status,
-                         log_msg) = self._write_run_data(atoms,
-                                                         tasks,
-                                                         files,
-                                                         status,
-                                                         log_msg)
-                        if status.startswith('submit'):
-                            job_id, log_msg = self._submit(run_scripts,
-                                                           scheduler_options)
-                            if job_id:
-                                logger.debug('submitting success {}'
-                                             ''.format(job_id))
-                                # update status and save job_id
-                                status = 'running:{}'.format(self.name)
-                                with open('job.id', 'w') as file_o:
-                                    file_o.write('{}'.format(job_id))
-                                sent_jobs += 1
-                            else:
-                                logger.debug('submitting failed {}'
-                                             ''.format(job_id))
-                                status = 'failed:{}'.format(self.name)
+                    # preparing run script
+                    (run_scripts,
+                     status,
+                     log_msg) = self._write_run_data(atoms,
+                                                     tasks,
+                                                     files,
+                                                     status,
+                                                     log_msg)
+                    if status.startswith('submit'):
+                        job_id, log_msg = self._submit(run_scripts,
+                                                       scheduler_options)
+                        if job_id:
+                            logger.debug('submitting success {}'
+                                         ''.format(job_id))
+                            # update status and save job_id
+                            status = 'running:{}'.format(self.name)
+                            with open('job.id', 'w') as file_o:
+                                file_o.write('{}'.format(job_id))
+                            sent_jobs += 1
+                        else:
+                            logger.debug('submitting failed {}'
+                                         ''.format(job_id))
+                            status = 'failed:{}'.format(self.name)
 
-                        # updating database
-                        data = row.data
-                        _ = data['scheduler'].get('log', '') + log_msg
-                        data['scheduler']['log'] = _
-                        logger.debug('updating database')
-                        # adds status, name of calculation, and data
-                        fdb.update(id_, status=status, name=name, data=data)
-                logger.info('ID {} submission: '
-                            '{}'.format(id_,
-                                        (status if status == 'failed' else
-                                         'successful')))
+            with db.connect(self.db) as fdb:
+                row = fdb.get(id_)
+                # updating database
+                data = row.data
+                _ = data['scheduler'].get('log', '') + log_msg
+                data['scheduler']['log'] = _
+                logger.debug('updating database')
+                # adds status, name of calculation, and data
+                fdb.update(id_, status=status, name=name, data=data)
+            logger.info('ID {} submission: '
+                        '{}'.format(id_,
+                                    (status if status == 'failed' else
+                                     'successful')))
 
     def _write_run_data(self, atoms, tasks, files, status, log_msg):
         """
@@ -447,26 +455,30 @@ class BaseRunner(ABC):
         """
         Cancels run in cancel
         """
+        ids_ = []
         with db.connect(self.db) as fdb:
             for row in fdb.select(status='cancel:{}'.format(self.name)):
-                id_ = row.id
-                logger.debug('cancel {}'.format(id_))
-                job_id = self.get_job_id(id_)
-                if job_id:
-                    logger.debug('found {}'.format(id_))
-                    # cancel the job and update database
-                    self._cancel(job_id)
-                    status, log_msg = ['failed:{}'.format(self.name),
-                                       '{}\nCancelled by user\n'
-                                       ''.format(datetime.now())]
-                else:
-                    logger.debug('lost {}'.format(id_))
-                    # no job_id but still cancel, eg when pending
-                    status, log_msg = ['failed:{}'.format(self.name),
-                                       '{}\nCancelled by user, '
-                                       'no job was running\n'
-                                       ''.format(datetime.now())]
-                # updating status and log
+                ids_.append(row.id)
+
+        for id_ in ids_:
+            logger.debug('cancel {}'.format(id_))
+            job_id = self.get_job_id(id_)
+            if job_id:
+                logger.debug('found {}'.format(id_))
+                # cancel the job and update database
+                self._cancel(job_id)
+                status, log_msg = ['failed:{}'.format(self.name),
+                                   '{}\nCancelled by user\n'
+                                   ''.format(datetime.now())]
+            else:
+                logger.debug('lost {}'.format(id_))
+                # no job_id but still cancel, eg when pending
+                status, log_msg = ['failed:{}'.format(self.name),
+                                   '{}\nCancelled by user, '
+                                   'no job was running\n'
+                                   ''.format(datetime.now())]
+            # updating status and log
+            with db.connect(self.db) as fdb:
                 data = fdb.get(id_).data
                 _ = data['scheduler'].get('log', '') + log_msg
                 data['scheduler']['log'] = _
