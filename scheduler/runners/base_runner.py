@@ -226,7 +226,8 @@ class BaseRunner(ABC):
                     fdb.update(id_, atoms=atoms, data=data,
                                **key_value_pairs)
                 # delete run if keep_run is False
-                if not self.keep_run:
+                if not self.keep_run and not data['scheduler'].get('keep_run',
+                                                                  False):
                     with Cd(self.run_folder):
                         if str(id_) in os.listdir():
                             shutil.rmtree(str(id_))
