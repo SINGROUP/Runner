@@ -1,4 +1,4 @@
-from scheduler.runners import BaseRunner
+from scheduler.runner import BaseRunner
 import subprocess as sb
 from _datetime import datetime
 import logging

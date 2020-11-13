@@ -12,7 +12,7 @@ from datetime import datetime
 from abc import ABC, abstractmethod
 from ase import db
 from ase import Atoms
-from .utils import get_scheduler_data, Cd, run_py
+from scheduler.utils import get_scheduler_data, Cd, run_py
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
