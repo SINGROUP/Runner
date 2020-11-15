@@ -12,14 +12,15 @@ from datetime import datetime
 from abc import ABC, abstractmethod
 from ase import db
 from ase import Atoms
-from scheduler.utils import get_scheduler_data, Cd, run_py
+from .utils import Cd, run_py
+from .utils.runnerdata import RunnerData
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
 
-file_handler = logging.FileHandler('sample.log')
+file_handler = logging.FileHandler('runner.log')
 file_handler.setLevel(logging.ERROR)
 file_handler.setFormatter(formatter)
 
@@ -78,15 +79,16 @@ class BaseRunner(ABC):
         self.multi_fail = multi_fail
         self.interpreter = interpreter
 
-        scheduler = {}
+        runner = {}
         if scheduler_options is not None:
-            scheduler['scheduler_options'] = scheduler_options
+            runner['scheduler_options'] = scheduler_options
         if tasks is not None:
-            scheduler['tasks'] = tasks
+            runner['tasks'] = tasks
         if files is not None:
-            scheduler['files'] = files
+            runner['files'] = files
+        runner_data = RunnerData(runner)
         (scheduler_options, name, parents, tasks, files, success,
-         log) = get_scheduler_data(scheduler)
+         log) = runner_data.get_runner_data(_skip_empty_task_test=True)
         if not success:
             raise RuntimeError(log)
 
@@ -213,8 +215,8 @@ class BaseRunner(ABC):
                     data = fdb.get(id_).data
 
                     # updating status and log
-                    _ = data['scheduler'].get('log', '') + log_msg
-                    data['scheduler']['log'] = _
+                    _ = data['runner'].get('log', '') + log_msg
+                    data['runner']['log'] = _
                     # remove old data
                     atoms.info.pop('data', None)
                     atoms.info.pop('unique_id', None)
@@ -226,8 +228,8 @@ class BaseRunner(ABC):
                     fdb.update(id_, atoms=atoms, data=data,
                                **key_value_pairs)
                 # delete run if keep_run is False
-                if not self.keep_run and not data['scheduler'].get('keep_run',
-                                                                  False):
+                if not self.keep_run and not data['runner'].get('keep_run',
+                                                                False):
                     with Cd(self.run_folder):
                         if str(id_) in os.listdir():
                             shutil.rmtree(str(id_))
@@ -239,14 +241,14 @@ class BaseRunner(ABC):
                     data = fdb.get(id_).data
 
                     if status.startswith('failed'):
-                        if 'fail_count' not in data['scheduler']:
-                            data['scheduler']['fail_count'] = 1
+                        if 'fail_count' not in data['runner']:
+                            data['runner']['fail_count'] = 1
                         else:
-                            data['scheduler']['fail_count'] += 1
+                            data['runner']['fail_count'] += 1
 
                     # updating status and log
-                    _ = data['scheduler'].get('log', '') + log_msg
-                    data['scheduler']['log'] = _
+                    _ = data['runner'].get('log', '') + log_msg
+                    data['runner']['log'] = _
                     logger.debug('updating')
                     fdb.update(id_, status=status, data=data)
 
@@ -299,19 +301,20 @@ class BaseRunner(ABC):
             with db.connect(self.db) as fdb:
                 row = fdb.get(id_)
                 # get relevant data form atoms
-                logger.debug('get scheduler data')
+                logger.debug('get runner data')
+                runnerdata = RunnerData(row.data.get('runner', None))
                 (scheduler_options, name, parents, tasks, files, success,
-                 log) = get_scheduler_data(row.data.get('scheduler', None))
+                 log) = runnerdata.get_runner_data()
 
                 # if error in scheduler data
                 if not success or len(tasks) == 0:
                     logger.info('scheduler data corrupt/missing')
                     # job failed if no scheduler info
-                    _ = row.data.get('scheduler', {})
+                    _ = row.data.get('runner', {})
                     _.update({'log': '{}\n{}\n'
                                      ''.format(datetime.now(), log),
                               'fail_count': self.multi_fail + 1})
-                    row.data['scheduler'] = _
+                    row.data['runner'] = _
                     fdb.update(id_,
                                status='failed:{}'.format(self.name),
                                data=row.data)
@@ -343,7 +346,12 @@ class BaseRunner(ABC):
                         break
                     # !TODO: catch exception if user does not have permission
                     # to read parent
-                    _ = parent_row.toatoms(add_additional_information=True)
+                    try:
+                        _ = parent_row.toatoms(attach_calculator=True,
+                                               add_additional_information=True)
+                    except AttributeError:
+                        _ = parent_row.toatoms(attach_calculator=False,
+                                               add_additional_information=True)
                     parent = _
                     atoms.append(parent)
 
@@ -384,8 +392,8 @@ class BaseRunner(ABC):
                 row = fdb.get(id_)
                 # updating database
                 data = row.data
-                _ = data['scheduler'].get('log', '') + log_msg
-                data['scheduler']['log'] = _
+                _ = data['runner'].get('log', '') + log_msg
+                data['runner']['log'] = _
                 logger.debug('updating database')
                 # adds status, name of calculation, and data
                 fdb.update(id_, status=status, name=name, data=data)
@@ -412,15 +420,18 @@ class BaseRunner(ABC):
         run_scripts = []
         py_run = 0
         for task in tasks:
-            # if task is a shell
             if task[0] == 'shell':
+                # shell run
                 shell_run = task[1]
                 if isinstance(shell_run, list):
                     shell_run = ' '.join(shell_run)
                 run_scripts.append(shell_run)
-            elif task[0].endswith('python'):
+            elif task[0] == 'python':
                 # python run
-                shell_run = task[0]
+                shell_run = 'python'
+                if isinstance(task[1], (list, tuple)):
+                    if len(task[1]) == 3:
+                        shell_run = task[1][2]
                 shell_run += ' run{}.py'.format(py_run)
                 shell_run += ' > run{}.out'.format(py_run)
                 run_scripts.append(shell_run)
@@ -481,8 +492,8 @@ class BaseRunner(ABC):
             # updating status and log
             with db.connect(self.db) as fdb:
                 data = fdb.get(id_).data
-                _ = data['scheduler'].get('log', '') + log_msg
-                data['scheduler']['log'] = _
+                _ = data['runner'].get('log', '') + log_msg
+                data['runner']['log'] = _
                 logger.debug('update {}'.format(id_))
                 fdb.update(id_, status=status, data=data)
 
@@ -496,13 +507,13 @@ class BaseRunner(ABC):
                 for row in fdb.select(status='failed:{}'.format(self.name)):
                     id_ = row.id
                     update = False
-                    if 'scheduler' not in row.data:
-                        row.data['scheduler'] = {}
-                    if 'fail_count' not in row.data['scheduler']:
-                        row.data['scheduler']['fail_count'] = (self.multi_fail
+                    if 'runner' not in row.data:
+                        row.data['runner'] = {}
+                    if 'fail_count' not in row.data['runner']:
+                        row.data['runner']['fail_count'] = (self.multi_fail
                                                                + 1)
                         update = True
-                    if (row.data['scheduler']['fail_count']
+                    if (row.data['runner']['fail_count']
                             <= self.multi_fail):
                         # submit in next cycle
                         # multiple updates for same id_ in "with"

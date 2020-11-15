@@ -1,4 +1,4 @@
-from schedulers.runners.slrum import SlurmRunner
-from schedulers.runners.terminal import TerminalRunner
+from .slrum import SlurmRunner
+from .terminal import TerminalRunner
 
 runner_list = ['SlurmRunner', 'TerminalRunner']
