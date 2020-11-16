@@ -12,8 +12,8 @@ from datetime import datetime
 from abc import ABC, abstractmethod
 from ase import db
 from ase import Atoms
-from .utils import Cd, run_py
-from .utils.runnerdata import RunnerData
+from runner.utils import Cd, run_py
+from runner.utils.runnerdata import RunnerData
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

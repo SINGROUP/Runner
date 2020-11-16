@@ -1,2 +1,2 @@
-# Scheduler
-Tools to easly schdule atomistic simulation workflow
+# Runner
+Tools to easly schedule atomistic simulation workflow
