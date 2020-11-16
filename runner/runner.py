@@ -20,14 +20,9 @@ logger.setLevel(logging.INFO)
 
 formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
 
-file_handler = logging.FileHandler('runner.log')
-file_handler.setLevel(logging.ERROR)
-file_handler.setFormatter(formatter)
-
 stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(formatter)
 
-logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
 
@@ -44,7 +39,8 @@ class BaseRunner(ABC):
                  cycle_time=30,
                  keep_run=False,
                  run_folder='./',
-                 multi_fail=0):
+                 multi_fail=0,
+                 logfile=None):
         """
         Runner runs tasks
         Parameters
@@ -68,7 +64,16 @@ class BaseRunner(ABC):
                 the folder that needs to be populated
             multi_fail: int
                 The number of re-runs on failure
+            logfile: str
+                log file for logging
         """
+        # logging
+        if logfile:
+            file_handler = logging.FileHandler(logfile)
+            file_handler.setLevel(logging.ERROR)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+
         logger.debug('Initialising')
         self.name = name
         self.db = database
@@ -497,7 +502,7 @@ class BaseRunner(ABC):
                 logger.debug('update {}'.format(id_))
                 fdb.update(id_, status=status, data=data)
 
-    def spool(self):
+    def spool(self, _endless=True):
         '''
         Does the spooling of jobs
         '''
@@ -538,7 +543,11 @@ class BaseRunner(ABC):
 
             # sleep before checking again
             logger.info('Sleeping for {}s'.format(self.cycle_time))
-            time.sleep(self.cycle_time)
+            if _endless:
+                time.sleep(self.cycle_time)
+            else:
+                # used for testing
+                break
 
             # check if stop file exists
             if 'STOP' in os.listdir(self.run_folder):

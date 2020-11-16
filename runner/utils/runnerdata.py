@@ -83,7 +83,7 @@ class RunnerData():
             log += 'Runner: Parents should be a list of int\n'
         else:
             for i in parents:
-                if isinstance(i, int):
+                if not isinstance(i, int):
                     log += 'Runner: parents should be a list of int\n'
                     success = False
 
@@ -98,13 +98,13 @@ class RunnerData():
             if len(tasks) == 0:
                 if not _skip_empty_task_test:
                     success = False
-                log += "Runner: tasks empty"
+                log += "Runner: tasks empty\n"
             for i, task in enumerate(tasks):
                 if str(task[0]) == 'shell':
                     if not isinstance(task[1], str):
                         success = False
                         log += ('Runner: shell command should'
-                                'be str')
+                                'be str\n')
                 elif task[0] == 'python':
                     if isinstance(task[1], str):
                         # add empty params
@@ -115,24 +115,33 @@ class RunnerData():
                                 'filename or a list with str filename'
                                 ', parameters and optional'
                                 'python command\n')
-                    elif len(task[1]) == 0 or len(task[1]) >= 2:
+                        break
+                    elif len(task[1]) == 0 or len(task[1]) > 3:
                         success = False
                         log += ('Runner: python task should be str'
                                 'filename or a list with str filename'
                                 ', parameters and optional'
                                 'python command\n')
+                        break
                     elif len(task[1]) == 1:
                         # add empty params
                         task[1] = [task[1], []]
+                    # testing task in files
+                    filename = task[1][0]
+                    if not filename.endswith('.py'):
+                        filename += '.py'
+                    if filename not in files:
+                        success = False
+                        log += ('Runner: python task should be in files\n')
                     if not isinstance(task[1][1], (list, tuple, dict)):
                         success = False
                         log += ('Runner: python parameters should'
-                                ' be either list or dict')
+                                ' be either list or dict\n')
                     elif len(task[1]) == 3:
                         if not isinstance(task[1][2], str):
                             success = False
                             log += ('Runner: python command should'
-                                    'be str')
+                                    'be str\n')
                 else:
                     success = False
                     log += ("Runner: task should either be 'shell' or "

@@ -63,7 +63,8 @@ class SlurmRunner(BaseRunner):
                  cycle_time=30,
                  keep_run=False,
                  run_folder='./',
-                 multi_fail=0):
+                 multi_fail=0,
+                 logfile=None):
         """
         Slurm runner
         Parameters
@@ -87,6 +88,8 @@ class SlurmRunner(BaseRunner):
                 the folder that needs to be populated
             multi_fail: int
                 The number of re-runs on failure
+            logfile: str
+                the log filename for logging
         """
         if not name.startswith('slurm'):
             name = 'slurm:' + name
@@ -101,6 +104,7 @@ class SlurmRunner(BaseRunner):
                          keep_run=keep_run,
                          run_folder=run_folder,
                          multi_fail=multi_fail,
+                         logfile=logfile
                         )
 
     def _submit(self,

@@ -30,7 +30,8 @@ class TerminalRunner(BaseRunner):
                  cycle_time=30,
                  keep_run=False,
                  run_folder='./',
-                 multi_fail=0):
+                 multi_fail=0,
+                 logfile=None):
         """
         Runner runs tasks
         Parameters
@@ -54,6 +55,8 @@ class TerminalRunner(BaseRunner):
                 the folder that needs to be populated
             multi_fail: int
                 The number of re-runs on failure
+            logfile: str
+                The log filename for logging
         """
         if not name.startswith('terminal'):
             name = 'terminal:' + name
@@ -68,6 +71,7 @@ class TerminalRunner(BaseRunner):
                          keep_run=keep_run,
                          run_folder=run_folder,
                          multi_fail=multi_fail,
+                         logfile=logfile
                         )
 
     def _submit(self,
