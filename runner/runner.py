@@ -92,10 +92,8 @@ class BaseRunner(ABC):
         if files is not None:
             runner['files'] = files
         runner_data = RunnerData(runner)
-        (scheduler_options, name, parents, tasks, files, success,
-         log) = runner_data.get_runner_data(_skip_empty_task_test=True)
-        if not success:
-            raise RuntimeError(log)
+        (scheduler_options, name, parents, tasks,
+         files) = runner_data.get_runner_data(_skip_empty_task_test=True)
 
         self.tasks = tasks
         self.scheduler_options = scheduler_options
@@ -308,16 +306,15 @@ class BaseRunner(ABC):
                 # get relevant data form atoms
                 logger.debug('get runner data')
                 runnerdata = RunnerData(row.data.get('runner', None))
-                (scheduler_options, name, parents, tasks, files, success,
-                 log) = runnerdata.get_runner_data()
-
-                # if error in scheduler data
-                if not success or len(tasks) == 0:
+                try:
+                    (scheduler_options, name, parents, tasks,
+                     files) = runnerdata.get_runner_data()
+                except RuntimeError as err:
                     logger.info('scheduler data corrupt/missing')
-                    # job failed if no scheduler info
+                    # job failed if corrupt/missing scheduler info
                     _ = row.data.get('runner', {})
                     _.update({'log': '{}\n{}\n'
-                                     ''.format(datetime.now(), log),
+                                     ''.format(datetime.now(), err),
                               'fail_count': self.multi_fail + 1})
                     row.data['runner'] = _
                     fdb.update(id_,
@@ -325,7 +322,7 @@ class BaseRunner(ABC):
                                data=row.data)
                     continue
 
-            # add local scheduler things
+            # add local runner things
             scheduler_options.update(self.scheduler_options)
             files.update(self.files)
             tasks = self.tasks + tasks  # prior execution of local tasks
@@ -434,18 +431,16 @@ class BaseRunner(ABC):
             elif task[0] == 'python':
                 # python run
                 shell_run = 'python'
-                if isinstance(task[1], (list, tuple)):
-                    if len(task[1]) == 3:
-                        shell_run = task[1][2]
+                if len(task) > 3:
+                    shell_run = task[3]
                 shell_run += ' run{}.py'.format(py_run)
                 shell_run += ' > run{}.out'.format(py_run)
                 run_scripts.append(shell_run)
 
-                params = task[1][1]
-                if isinstance(params, (tuple, list)):
-                    astr = '*'
-                elif isinstance(params, dict):
-                    astr = '**'
+                if len(task) > 2:
+                    params = task[2]
+                else:
+                    params = {}
                 # write params
                 try:
                     with open('params{}.json'.format(py_run), 'w') as file_o:
@@ -457,13 +452,12 @@ class BaseRunner(ABC):
                                              err.args[0]))
                     break
                 # making python executable
-                func_name = task[1][0]
+                func_name = task[1]
                 func_name = (func_name[:-3] if func_name.endswith('.py') else
                              func_name)
                 with open('run{}.py'.format(py_run), 'w') as file_o:
                     file_o.write(run_py.format(func=func_name,
-                                               ind=py_run,
-                                               astr=astr))
+                                               ind=py_run))
             py_run += 1
 
         return run_scripts, status, log_msg

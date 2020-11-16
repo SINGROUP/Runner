@@ -24,7 +24,7 @@ with open("params{ind}.json") as f:
     params = json.load(f, object_hook=json_keys2int)
 with open("atoms.pkl", "rb") as f:
     atoms = pickle.load(f)
-atoms = main(atoms, {astr}params)
+atoms = main(atoms, **params)
 with open("atoms.pkl", "wb") as f:
     pickle.dump(atoms, f)
 """
