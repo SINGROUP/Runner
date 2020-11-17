@@ -535,9 +535,9 @@ class BaseRunner(ABC):
             logger.info('Submitting')
             self._submit_run()
 
-            # sleep before checking again
-            logger.info('Sleeping for {}s'.format(self.cycle_time))
             if _endless:
+                # sleep before checking again
+                logger.info('Sleeping for {}s'.format(self.cycle_time))
                 time.sleep(self.cycle_time)
             else:
                 # used for testing

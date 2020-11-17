@@ -44,7 +44,7 @@ def test_runnerdata():
     assert 'energy.py' in files
     assert len(tasks) == 0
 
-    fail = [None for _ in range(13)]
+    fail = [None for _ in range(16)]
     # empty tasks
     fail[1] = {'name': 'energy calculation',
                'tasks': [],
@@ -158,9 +158,35 @@ def test_runnerdata():
                 'scheduler_options': {'-N': 5},
                 'keep_run': True
                }
+    # bad python task
+    fail[13] = {'name': 'energy calculation',
+                'tasks': ['shell'],
+                'files': {'energy.py': energy_calculation},
+                'parents': [1, 2],
+                'scheduler_options': {'-N': 5},
+                'keep_run': True
+               }
+    # bad python task
+    fail[14] = {'name': 'energy calculation',
+                'tasks': [['shell', 'echo 1']
+                         ],
+                'files': {1: energy_calculation},
+                'parents': [1, 2],
+                'scheduler_options': {'-N': 5},
+                'keep_run': True
+               }
+    # bad python task
+    fail[15] = {'name': 'energy calculation',
+                'tasks': [['shell', 'echo 1']
+                         ],
+                'files': {'energy.py': 1},
+                'parents': [1, 2],
+                'scheduler_options': {'-N': 5},
+                'keep_run': True
+               }
 
-    for i in range(13):
-        run = RunnerData(fail[i])
+    for fail_ in fail:
+        run = RunnerData(fail_)
         with pytest.raises(RuntimeError):
             _ = run.get_runner_data()
 

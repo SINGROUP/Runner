@@ -82,6 +82,15 @@ class RunnerData():
         if not isinstance(files, dict):
             err = (log_msg + 'Runner: files should be a dictionary\n')
             raise RuntimeError(err)
+        for filename, content in files.items():
+            if not isinstance(filename, str):
+                err = (log_msg + 'Runner: filenames should be str\n')
+                raise RuntimeError(err)
+            if not isinstance(content, (str, bytes)):
+                err = (log_msg + 'Runner: file contents should be str'
+                       ' or bytes\n')
+                raise RuntimeError(err)
+
         if not isinstance(tasks, (list, tuple)):
             err = (log_msg + 'Runner: tasks should be a list\n')
             raise RuntimeError(err)
