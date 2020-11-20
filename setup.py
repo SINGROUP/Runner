@@ -8,7 +8,8 @@ if __name__ == '__main__':
         # scripts=["say_hello.py"],
         install_requires=["docutils>=0.3",
                           "ase",
-                          "numpy"],
+                          "numpy",
+                          "psutil"],
         package_data={
             # If any package contains *.txt or *.rst files, include them:
             "": ["*.txt", "*.rst"],
