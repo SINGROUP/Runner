@@ -1,4 +1,7 @@
 import pytest
+import os
+import ase.db as db
+from ase.atoms import Atoms
 from runner.utils.runnerdata import RunnerData
 
 
@@ -190,3 +193,77 @@ def test_runnerdata():
         with pytest.raises(RuntimeError):
             _ = run.get_runner_data()
 
+
+def test_properties():
+    run = RunnerData()
+    with pytest.raises(RuntimeError):
+        run.name = 1
+    with pytest.raises(RuntimeError):
+        run.keep_run = 1
+    with pytest.raises(RuntimeError):
+        run.scheduler_options = 1
+    with pytest.raises(RuntimeError):
+        run.tasks = 1
+    with pytest.raises(RuntimeError):
+        run.files = {1: 1}
+    with pytest.raises(RuntimeError):
+        run.append_tasks('ss')
+    with pytest.raises(RuntimeError):
+        run.append_tasks('shell')
+    with pytest.raises(RuntimeError):
+        run.append_tasks('python')
+    with pytest.raises(RuntimeError):
+        run.parents = 1
+    with pytest.raises(RuntimeError):
+        # task with no files in run.data
+        run.append_tasks('python', py_filename='en.py')
+    run.name = 'calculation'
+    run.tasks = []
+    with open('en.py', 'w') as fio:
+        fio.write('pass\n')
+    run.add_files(os.path.abspath('en.py'))
+    run.append_tasks('python', py_filename='en.py', command='python3')
+    run.parents = [1, 2]
+    run.scheduler_options = {'-N': 5}
+    run.add_scheduler_options({'-n': 16})
+
+def test_to_from_data():
+    energy_calculation = 'import numpy as np'
+    success = {'name': 'energy calculation',
+               'tasks': [['shell', "export OMP_NUM_THREADS=1"],
+                         ['python', "energy.py"],
+                         ['python', "energy.py", {'conf': 0}],
+                         ['python', "energy.py", {'conf': 0}, 'python3']
+                        ],
+               'files': {'energy.py': energy_calculation},
+               'parents': [1, 2],
+               'scheduler_options': {'-N': 5},
+               'keep_run': True
+              }
+
+    with db.connect('database.db') as fdb:
+        fdb.write(Atoms())
+
+    runner = RunnerData(success)
+    runner.to_db('database.db', 1)
+    runner.to_json('database.json')
+    runner = RunnerData.from_db('database.db', 1)
+    (scheduler_options, name, parents, tasks,
+     files) = runner.get_runner_data()
+    assert name == 'energy calculation'
+    assert len(parents) == 2
+    assert parents[0] == 1 and parents[1] == 2
+    assert isinstance(scheduler_options, dict)
+    assert isinstance(files, dict)
+    assert 'energy.py' in files
+    assert len(tasks) == 4
+    runner = RunnerData.from_json('database.json')
+    (scheduler_options, name, parents, tasks,
+     files) = runner.get_runner_data()
+    assert name == 'energy calculation'
+    assert len(parents) == 2
+    assert parents[0] == 1 and parents[1] == 2
+    assert isinstance(scheduler_options, dict)
+    assert isinstance(files, dict)
+    assert 'energy.py' in files
+    assert len(tasks) == 4
