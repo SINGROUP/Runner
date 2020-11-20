@@ -6,22 +6,24 @@ from _datetime import datetime
 # List of states from the man page of squeue
 # states are mapped to status and log message
 _slurm_map = {"CANCELLED": ['failed',
-                            "Job  was explicitly cancelled by the user or system "
-                            "administrator.  The job may or may  not  have  been "
-                            "initiated."],
+                            "Job  was explicitly cancelled by the user or "
+                            "system administrator.  The job may or may "
+                            "not  have  been initiated."],
               "COMPLETED": ['done',
                             "Job has terminated all processes on all nodes."],
               "CONFIGURING": ['running',
-                              "Job  has  been allocated resources, but are waiting "
-                              "for them to become ready for use (e.g. booting)."],
+                              "Job  has  been allocated resources, but are "
+                              "waiting for them to become ready for use "
+                              "(e.g. booting)."],
               "COMPLETING": ['running',
-                             "Job is in the process of completing. Some processes "
-                             "on some nodes may still be active."],
+                             "Job is in the process of completing. Some "
+                             "processes on some nodes may still be active."],
               "FAILED": ['failed',
                          "Job  terminated  with  non-zero  exit code or other "
                          "failure condition."],
               "NODE_FAIL": ['failed',
-                            "Job terminated due to failure of one or more  allocated"],
+                            "Job terminated due to failure of one or more "
+                            "allocated resources"],
               "PENDING": ['running',
                           "Job is awaiting resource allocation."],
               "PREEMPTED": ['failed',
@@ -29,7 +31,8 @@ _slurm_map = {"CANCELLED": ['failed',
               "RUNNING": ['running',
                           "Job currently has an allocation."],
               "SUSPENDED": ['running',
-                            "Job  has an allocation, but execution has been suspended"],
+                            "Job  has an allocation, but execution has been "
+                            "suspended"],
               "TIMEOUT": ['failed',
                           "Job terminated upon reaching its time limit."]}
 
@@ -88,8 +91,7 @@ class SlurmRunner(BaseRunner):
                          keep_run=keep_run,
                          run_folder=run_folder,
                          multi_fail=multi_fail,
-                         logfile=logfile
-                        )
+                         logfile=logfile)
 
     def _submit(self,
                 tasks,
@@ -128,8 +130,8 @@ class SlurmRunner(BaseRunner):
         # add tasks
         run_script += '\n'.join(tasks)
 
-        with open('batch.slrm', 'w') as f:
-            f.write(run_script)
+        with open('batch.slrm', 'w') as fio:
+            fio.write(run_script)
 
         out = sb.run(['sbatch', 'batch.slrm'],
                      stderr=sb.PIPE,
@@ -167,7 +169,7 @@ class SlurmRunner(BaseRunner):
         log_msg = ''
         out = sb.run(['sacct', '-j', job_id, '--format', 'JobName',
                       '--format', 'State', '--format', 'End', '--format',
-                      'Elapsed', '--format', 'CPUTime',  '--parsable'],
+                      'Elapsed', '--format', 'CPUTime', '--parsable'],
                      stdout=sb.PIPE, stderr=sb.PIPE)
         # get formatted output
         formatted_out = [x.split('|')

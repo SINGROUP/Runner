@@ -2,7 +2,6 @@ import time
 from copy import copy
 import os
 
-import pytest
 import ase.db as db
 from ase.atoms import Atoms
 
@@ -21,10 +20,9 @@ runner = {'scheduler_options': {},
           'tasks': [['shell', 'sleep 1'],
                     ['python', 'energy.py'],
                     ['python', 'energy.py', {'conf': 0}],
-                    ['python', 'energy.py', {'conf': 0}, 'python3'],
-                   ],
-          'files': {'energy.py': energy}
-         }
+                    ['python', 'energy.py', {'conf': 0}, 'python3']],
+          'files': {'energy.py': energy}}
+
 
 def test_successful_run():
     """test run and parent run"""
@@ -65,10 +63,11 @@ def test_successful_run():
     run.spool(_endless=False)
     assert fdb.get(id_3).status == 'done:terminal:test'
 
-    assert not str(id_) in os.listdir(), 'no cleanup after done' 
-    assert not str(id_1) in os.listdir(), 'no cleanup after done' 
-    assert not str(id_2) in os.listdir(), 'no cleanup after done' 
-    assert str(id_3) in os.listdir(), 'keep_run failed' 
+    assert not str(id_) in os.listdir(), 'no cleanup after done'
+    assert not str(id_1) in os.listdir(), 'no cleanup after done'
+    assert not str(id_2) in os.listdir(), 'no cleanup after done'
+    assert str(id_3) in os.listdir(), 'keep_run failed'
+
 
 def test_failed_run():
     """test failed run"""
@@ -96,7 +95,6 @@ def test_failed_run():
                            data=data,
                            status='submit:terminal:test')
 
-
     run = TerminalRunner('test')
     run.spool(_endless=False)
     fdb = db.connect('database.db')
@@ -111,6 +109,6 @@ def test_failed_run():
     for i in id_:
         assert fdb.get(i).status == 'failed:terminal:test', i
         if i == id_[0]:
-            assert str(i) in os.listdir(), 'failed run folder cleaned' 
+            assert str(i) in os.listdir(), 'failed run folder cleaned'
             assert fdb.get(i).data['runner']['fail_count'] == 1,\
-                    'fail count not updated'
+                'fail count not updated'

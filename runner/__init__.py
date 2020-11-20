@@ -4,4 +4,5 @@ from runner.runners import TerminalRunner
 from runner.utils.runnerdata import RunnerData
 
 
-__all__ = ['SlurmRunner', 'TerminalRunner']
+__all__ = ['SlurmRunner', 'TerminalRunner', 'RunnerData']
+BaseRunner

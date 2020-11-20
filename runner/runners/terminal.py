@@ -56,8 +56,7 @@ class TerminalRunner(BaseRunner):
                          keep_run=keep_run,
                          run_folder=run_folder,
                          multi_fail=multi_fail,
-                         logfile=logfile
-                        )
+                         logfile=logfile)
 
     def _submit(self,
                 tasks,

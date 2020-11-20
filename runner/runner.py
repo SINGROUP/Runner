@@ -12,7 +12,7 @@ from datetime import datetime
 from abc import ABC, abstractmethod
 from ase import db
 from ase import Atoms
-from runner.utils import Cd, run_py
+from runner.utils import Cd, RUN_PY
 from runner.utils.runnerdata import RunnerData
 
 logger = logging.getLogger(__name__)
@@ -456,7 +456,7 @@ class BaseRunner(ABC):
                 func_name = (func_name[:-3] if func_name.endswith('.py') else
                              func_name)
                 with open('run{}.py'.format(py_run), 'w') as file_o:
-                    file_o.write(run_py.format(func=func_name,
+                    file_o.write(RUN_PY.format(func=func_name,
                                                ind=py_run))
             py_run += 1
 
@@ -510,7 +510,7 @@ class BaseRunner(ABC):
                         row.data['runner'] = {}
                     if 'fail_count' not in row.data['runner']:
                         row.data['runner']['fail_count'] = (self.multi_fail
-                                                               + 1)
+                                                            + 1)
                         update = True
                     if (row.data['runner']['fail_count']
                             <= self.multi_fail):

@@ -4,7 +4,7 @@ Utility tools for schedulers
 import os
 
 
-run_py = """
+RUN_PY = """
 import json
 import pickle
 from ase.atoms import Atoms
@@ -47,14 +47,13 @@ class Cd:
         os.chdir(self.saved_path)
 
 
-def json_keys2int(x):
+def json_keys2int(dict_):
     """ Converts dict keys to int if all dict keys can be converted to int
     JSON only has string keys, its a compromise to save int keys, if all int
     """
-    if isinstance(x, dict):
+    if isinstance(dict_, dict):
         try:
-            return {{int(k):v for k,v in x.items()}}
+            return {{int(k): v for k, v in dict_.items()}}
         except ValueError:
             pass
-    return x
-
+    return dict_
