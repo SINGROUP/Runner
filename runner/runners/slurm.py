@@ -178,7 +178,16 @@ class SlurmRunner(BaseRunner):
         cpu_time = formatted_out[1][4]
 
         # slurm state of the job
-        state_list = [x[1].split()[0] for x in formatted_out[1:-1]]
+        # state_list = [x[1].split()[0] for x in formatted_out[1:-1]]
+        # better handling of the gibberish last line
+        state_list = []
+        for x in formatted_out[1:]:
+            try:
+                state_list.append(x[1].split()[0])
+            except IndexError:
+                # the last line in formatted_out is gibberish sometimes
+                # ignore if it is not as per the | format
+                pass
         # scheduler status of the job
         status_list = []
         for state in state_list:
