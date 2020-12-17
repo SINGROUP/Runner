@@ -99,6 +99,75 @@ class BaseRunner(ABC):
         self.scheduler_options = scheduler_options
         self.files = files
 
+    def to_database(self, update=False):
+        """attaches runner to database
+        Args:
+            update (bool): optional, update runner info if already exists"""
+        dict_ = {}
+        dict_['max_jobs'] = self.max_jobs
+        dict_['cycle_time'] = self.cycle_time
+        dict_['keep_run'] = self.keep_run
+        dict_['run_folder'] = self.run_folder
+        dict_['multi_fail'] = self.multi_fail
+        dict_['interpreter'] = self.interpreter
+        dict_['tasks'] = self.tasks
+        dict_['scheduler_options'] = self.scheduler_options
+        dict_['files'] = self.files
+        dict_['running'] = False
+
+        with db.connect(self.db) as fdb:
+            meta = fdb.metadata
+
+        runners = meta.get('runners', {})
+
+        if self.name in runners:
+            if not update:
+                raise RuntimeError('Runner exists, pass argument update as'
+                                   ' true to update')
+            elif runners[self.name].get('running', False):
+                raise RuntimeError('Runner already running')
+
+        if 'runners' not in meta:
+            meta['runners'] = {}
+
+        meta['runners'].update({self.name: dict_})
+        with db.connect(self.db) as fdb:
+            fdb.metadata = meta
+
+    @classmethod
+    def from_database(cls, name, database):
+        """Get runner from database
+        Args:
+            name (str): name of runner
+            database (str): database"""
+
+        with db.connect(database) as fdb:
+            meta = fdb.metadata
+
+        try:
+            dict_ = meta['runners'][name]
+        except KeyError:
+            raise KeyError(f'{name} not in runners, try runner list')
+        dict_.pop('running', False)
+
+        return cls(name=name,
+                   database=database,
+                   **dict_)
+
+    def _set_running(self):
+        """notify database that runner is running"""
+        with db.connect(self.db) as fdb:
+            meta = fdb.metadata
+            meta['runners'][self.name]['running'] = True
+            fdb.metadata = meta
+
+    def _unset_running(self):
+        """notify database that runner is not running"""
+        with db.connect(self.db) as fdb:
+            meta = fdb.metadata
+            meta['runners'][self.name]['running'] = False
+            fdb.metadata = meta
+
     def get_job_id(self, id_):
         """
         Returns job_id of id_
@@ -500,50 +569,57 @@ class BaseRunner(ABC):
         '''
         Does the spooling of jobs
         '''
-        while True:
-            logger.info('Searching failed jobs')
-            with db.connect(self.db) as fdb:
-                for row in fdb.select(status='failed:{}'.format(self.name)):
-                    id_ = row.id
-                    update = False
-                    if 'runner' not in row.data:
-                        row.data['runner'] = {}
-                    if 'fail_count' not in row.data['runner']:
-                        row.data['runner']['fail_count'] = (self.multi_fail
-                                                            + 1)
-                        update = True
-                    if (row.data['runner']['fail_count']
-                            <= self.multi_fail):
-                        # submit in next cycle
-                        # multiple updates for same id_ in "with"
-                        # statement is problematic
-                        logger.debug('re-submitted: {}'.format(id_))
-                        update = True
-                    if update:
-                        fdb.update(id_, status='submit:{}'.format(self.name),
-                                   data=row.data)
+        # since the user is now spooling, the runner should update the
+        # metadata of the database, this will raise error if the runner
+        # is already running
+        self.to_database(update=True)
+        # now set the runner as running
+        self._set_running()
+        try:
+            while True:
+                logger.info('Searching failed jobs')
+                with db.connect(self.db) as fdb:
+                    for row in fdb.select(status=f'failed:{self.name}'):
+                        id_ = row.id
+                        update = False
+                        if 'runner' not in row.data:
+                            row.data['runner'] = {}
+                        if 'fail_count' not in row.data['runner']:
+                            row.data['runner']['fail_count'] = (self.multi_fail
+                                                                + 1)
+                            update = True
+                        if (row.data['runner']['fail_count']
+                                <= self.multi_fail):
+                            # submit in next cycle
+                            # multiple updates for same id_ in "with"
+                            # statement is problematic
+                            logger.debug('re-submitted: {}'.format(id_))
+                            update = True
+                        if update:
+                            fdb.update(id_, status=f'submit:{self.name}',
+                                       data=row.data)
 
-            # cancel jobs
-            logger.info('Cancelling jobs, if jobs to cancel')
-            self._cancel_run()
+                # cancel jobs
+                logger.info('Cancelling jobs, if jobs to cancel')
+                self._cancel_run()
 
-            # update if running have finished
-            logger.info('Updating running status')
-            self._update_status_running()
+                # update if running have finished
+                logger.info('Updating running status')
+                self._update_status_running()
 
-            # send submit for run
-            logger.info('Submitting')
-            self._submit_run()
+                # send submit for run
+                logger.info('Submitting')
+                self._submit_run()
 
-            if _endless:
-                # sleep before checking again
-                logger.info('Sleeping for {}s'.format(self.cycle_time))
-                time.sleep(self.cycle_time)
-            else:
-                # used for testing
-                break
+                if _endless:
+                    # sleep before checking again
+                    logger.info('Sleeping for {}s'.format(self.cycle_time))
+                    time.sleep(self.cycle_time)
+                else:
+                    # used for testing
+                    break
+        except KeyboardInterrupt:
+            pass
+        finally:
+            self._unset_running()
 
-            # check if stop file exists
-            if 'STOP' in os.listdir(self.run_folder):
-                logger.info('STOP file found; stopping')
-                break
