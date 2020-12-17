@@ -70,7 +70,7 @@ def get_status(id_, database):
     """
     id_ = int(id_)
     with db.connect(database) as fdb:
-        status = fdb.get(id_).status
+        status = fdb.get(id_).get('status', 'No status')
     return status
 
 
