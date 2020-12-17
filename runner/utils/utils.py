@@ -2,6 +2,7 @@
 Utility tools for schedulers
 """
 import os
+import ase.db as db
 
 
 RUN_PY = """
@@ -57,3 +58,46 @@ def json_keys2int(dict_):
         except ValueError:
             pass
     return dict_
+
+
+def get_status(id_, database):
+    """Gets status of id_ in the database
+    Args:
+        id_ (int): id_ in the database
+        database (str): the database name
+    Returns:
+        str: the status of the run
+    """
+    id_ = int(id_)
+    with db.connect(database) as fdb:
+        status = fdb.get(id_).status
+    return status
+
+
+def submit(id_, database, runner_name):
+    """Submits id_ in the database
+    Args:
+        id_ (int): id_ in the database
+        database (str): the database name
+        runner_name (str): name of the runner
+    Returns:
+        str: the status of the run
+    """
+    id_ = int(id_)
+    with db.connect(database) as fdb:
+        fdb.update(id_, status=f'submit:{runner_name}')
+
+
+def cancel(id_, database):
+    """Gets status of id_ in the database
+    Args:
+        id_ (int): id_ in the database
+        database (str): the database name
+    """
+    id_ = int(id_)
+    with db.connect(database) as fdb:
+        row = fdb.get(id_)
+        if 'status' in row:
+            status = row.status.split(':')
+            status[0] = 'cancel'
+            fdb.update(id_, status=':'.join(status))
