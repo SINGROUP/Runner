@@ -109,20 +109,32 @@ class RunnerData():
         _test_files(files)
         self.data['files'] = files
 
-    def add_files(self, filenames):
-        """Adds files to runner data"""
+    def add_files(self, filenames, name_file=None):
+        """Adds files to runner data
+        Args:
+            filenamse (list): list of filenames to be added
+            name_file (list, optional): list of name the file should be
+                                        given in the runner data"""
         if not isinstance(filenames, (tuple, list)):
             filenames = [filenames]
+        if name_file is not None:
+            if not isinstance(name_file, (tuple, list)):
+                name_file = [name_file]
+            if len(name_file) != len(filenames):
+                raise RuntimeError('Length of filenames and name_file should'
+                                   ' be the same')
+        else:
+            name_file = filenames
 
-        for filename in filenames:
+        for i, filename in enumerate(filenames):
             try:
                 with open(filename, 'r') as fio:
-                    basename = os.path.basename(filename)
+                    basename = os.path.basename(name_file[i])
                     self.data['files'][basename] = fio.read()
             except UnicodeDecodeError:
                 # file is binary
                 with open(filename, 'rb') as fio:
-                    basename = os.path.basename(filename)
+                    basename = os.path.basename(name_file[i])
                     self.data['files'][basename] = fio.read()
 
     @property

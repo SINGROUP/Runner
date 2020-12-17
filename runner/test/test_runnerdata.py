@@ -184,15 +184,20 @@ def test_properties():
         run.append_tasks('python')
     with pytest.raises(RuntimeError):
         run.parents = 1
+    with open('en.py', 'w') as fio:
+        fio.write('pass\n')
+    with pytest.raises(RuntimeError):
+        run.add_files(os.path.abspath('en.py'), ['en1.py', 'en.py'])
+    with pytest.raises(RuntimeError):
+        # task with no files in run.data
+        run.append_tasks('python', py_filename='en.py')
+    run.add_files(os.path.abspath('en.py'), 'en1.py')
     with pytest.raises(RuntimeError):
         # task with no files in run.data
         run.append_tasks('python', py_filename='en.py')
     run.name = 'calculation'
     run.tasks = []
-    with open('en.py', 'w') as fio:
-        fio.write('pass\n')
-    run.add_files(os.path.abspath('en.py'))
-    run.append_tasks('python', py_filename='en.py', command='python3')
+    run.append_tasks('python', py_filename='en1.py', command='python3')
     run.parents = [1, 2]
     run.scheduler_options = {'-N': 5}
     run.add_scheduler_options({'-n': 16})
