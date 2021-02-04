@@ -26,6 +26,9 @@ stream_handler.setFormatter(formatter)
 logger.addHandler(stream_handler)
 
 
+default_files = ['run.sh', 'batch.slrm', 'atoms.pkl']
+
+
 class BaseRunner(ABC):
 
     def __init__(self,
@@ -470,8 +473,8 @@ class BaseRunner(ABC):
                 fdb.update(id_, status=status, name=name, data=data)
             logger.info('ID {} submission: '
                         '{}'.format(id_,
-                                    (status if status == 'failed' else
-                                     'successful')))
+                                    (status if status.startswith('failed')
+                                     else 'successful')))
 
     def _write_run_data(self, atoms, tasks, files, status, log_msg):
         """

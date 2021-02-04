@@ -190,14 +190,14 @@ def test_properties():
         run.add_files(os.path.abspath('en.py'), ['en1.py', 'en.py'])
     with pytest.raises(RuntimeError):
         # task with no files in run.data
-        run.append_tasks('python', py_filename='en.py')
+        run.append_tasks('python', 'en.py')
     run.add_files(os.path.abspath('en.py'), 'en1.py')
     with pytest.raises(RuntimeError):
         # task with no files in run.data
-        run.append_tasks('python', py_filename='en.py')
+        run.append_tasks('python', 'en.py')
     run.name = 'calculation'
     run.tasks = []
-    run.append_tasks('python', py_filename='en1.py', command='python3')
+    run.append_tasks('python', 'en1.py', {}, 'python3')
     run.parents = [1, 2]
     run.scheduler_options = {'-N': 5}
     run.add_scheduler_options({'-n': 16})

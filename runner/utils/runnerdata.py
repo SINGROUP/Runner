@@ -73,26 +73,39 @@ class RunnerData():
         _test_tasks(tasks, self.files, _skip_empty_task_test=True)
         self.data['tasks'] = tasks
 
-    def append_tasks(self, task_type, py_filename=None,
-                     py_params=None, command=None):
+    def append_tasks(self, task_type, *args):
         """Appends task to tasks
-        Parameters
+        Example:
+            >>> # shell task_type followed by shell command
+            >>> self.append_tasks('shell', 'module load anaconda3')
+            >>> # python task_type followed by python file
+            >>> self.append_tasks('python', 'get_energy.py')
+            >>> # python task_type with parameters
+            >>> self.append_tasks('python', 'get_energy.py', {'param': 0})
+            >>> # python task_type with python execute command
+            >>> # NB: the 3rd argument has to be parameters, if no parameters
+            >>> # empty dict has to be given.
+            >>> # default: python <python file>
+            >>> # to execute: mpirun -n 4 python3 get_energy.py
+            >>> self.append_tasks('python', 'get_energy.py', {},
+                                  'mpirun -n 4 python3')
+
+
+        Parameters:
             task_type (str): task type, 'shell' or 'python'
-            py_filename (str): filename of the python executable, if python
-                               task
-            py_params (dict): python parameters for a python tasks
-            command (str): shell command or python command ('python3' or
-                           'mpirun -n 4 python', default 'python')
+            *args: args for task type, see example
+                for shell task_type, args is shell command (str)
+                for python task_type, args is python filename (str),
+                parameters (dict), and python execute command (str)
         """
         if task_type == 'shell':
-            task = ['shell', command]
+            task = ['shell', *args]
         elif task_type == 'python':
-            task = ['python', py_filename]
-            if py_params is None:
-                py_params = {}
-            task.append(py_params)
-            if command is not None:
-                task.append(command)
+            task = ['python', *args]
+            if len(task) == 2:
+                task.append({})
+            if len(task) == 3:
+                task.append('python')
         else:
             raise RuntimeError('task type shell or python supported')
 
@@ -109,33 +122,42 @@ class RunnerData():
         _test_files(files)
         self.data['files'] = files
 
-    def add_files(self, filenames, name_file=None):
+    def add_file(self, filename, add_as=None):
+        """Add file to runner data
+        Args:
+            filename (str): name of the file
+            add_as (str): name the file should be added as"""
+        if add_as is None:
+            add_as = filename
+        try:
+            with open(filename, 'r') as fio:
+                basename = os.path.basename(add_as)
+                self.data['files'][basename] = fio.read()
+        except UnicodeDecodeError:
+            # file is binary
+            with open(filename, 'rb') as fio:
+                basename = os.path.basename(add_as)
+                self.data['files'][basename] = fio.read()
+
+    def add_files(self, filenames, add_as=None):
         """Adds files to runner data
         Args:
-            filenamse (list): list of filenames to be added
-            name_file (list, optional): list of name the file should be
-                                        given in the runner data"""
+            filenames (list): list of filenames to be added
+            add_as (list, optional): list of name the file should be
+                                     added as in the runner data"""
         if not isinstance(filenames, (tuple, list)):
             filenames = [filenames]
-        if name_file is not None:
-            if not isinstance(name_file, (tuple, list)):
-                name_file = [name_file]
-            if len(name_file) != len(filenames):
-                raise RuntimeError('Length of filenames and name_file should'
+        if add_as is not None:
+            if not isinstance(add_as, (tuple, list)):
+                add_as = [add_as]
+            if len(add_as) != len(filenames):
+                raise RuntimeError('Length of filenames and add_as should'
                                    ' be the same')
         else:
-            name_file = filenames
+            add_as = filenames
 
-        for i, filename in enumerate(filenames):
-            try:
-                with open(filename, 'r') as fio:
-                    basename = os.path.basename(name_file[i])
-                    self.data['files'][basename] = fio.read()
-            except UnicodeDecodeError:
-                # file is binary
-                with open(filename, 'rb') as fio:
-                    basename = os.path.basename(name_file[i])
-                    self.data['files'][basename] = fio.read()
+        for name_, filename in zip(add_as, filenames):
+            self.add_file(filename, name_)
 
     @property
     def scheduler_options(self):
@@ -343,3 +365,6 @@ def _test_scheduler_options(scheduler_options, log_msg=''):
     if not isinstance(scheduler_options, dict):
         err = log_msg + 'Runner: scheduler_options should be a dict\n'
         raise RuntimeError(err)
+
+def _tasks2file(tasks):
+    """converts tasks to run_scripts and files"""
