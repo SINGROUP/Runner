@@ -1,9 +1,26 @@
-from runner import BaseRunner
+from runner.runner import BaseRunner
 import subprocess as sb
 from _datetime import datetime
 
 
 class TerminalRunner(BaseRunner):
+    """
+    Terminal Runner
+
+    Args:
+        database (str): ASE database to connect
+        interpreter (str): the interpreter for the shell
+        scheduler_options (dict): scheduler_options local to the system
+        tasks (list): pre-tasks local to the system
+        files (dict): pre-tasks files local to the system
+        max_jobs (int): maximum number of jobs running at an instance
+        cycle_time (int): time in seconds
+        keep_run (bool): keep the folder in which the run was performed
+        run_folder (str): the folder that needs to be populated
+        multi_fail (int): The number of re-runs on failure
+        logfile (str): The log filename for logging
+    """
+
     def __init__(self,
                  name,
                  database="database.db",
@@ -17,32 +34,6 @@ class TerminalRunner(BaseRunner):
                  run_folder='./',
                  multi_fail=0,
                  logfile=None):
-        """
-        Runner runs tasks
-        Parameters
-            database: ASE database
-                the database to connect
-            interpreter: str
-                the interpreter for the shell
-            scheduler_options: dict
-                scheduler_options local to the system
-            tasks: list
-                pre-tasks local to the system
-            files: dict
-                pre-tasks files local to the system
-            max_jobs: int
-                maximum number of jobs running at an instance
-            cycle_time: int
-                time in seconds
-            keep_run: bool
-                keep the folder in which the run was performed
-            run_folder: str
-                the folder that needs to be populated
-            multi_fail: int
-                The number of re-runs on failure
-            logfile: str
-                The log filename for logging
-        """
         if not name.startswith('terminal'):
             name = 'terminal:' + name
         super().__init__(name=name,
@@ -63,16 +54,14 @@ class TerminalRunner(BaseRunner):
                 scheduler_options):
         """
         Submit job
-        Parameters
-            tasks: list
-                list of tasks to be added
-            scheduler_options: dictionary
-                dictionary of headers to be added
-        Returns
-            job_id: str
-                Job id of the successful run, None if failed
-            log_msg: str
-                log message of the run
+
+        Args:
+            tasks (list): list of tasks to be added
+            scheduler_options (dictionary): dictionary of headers to be added
+
+        Returns:
+            str: Job id of the successful run, None if failed
+            str: log message of the run
         """
         # default values
         job_id = None
@@ -128,14 +117,13 @@ class TerminalRunner(BaseRunner):
     def _status(self, job_id):
         """
         return status of job_id
-        Parameters
-            job_id: str
-                job id of the run
-        Returns
-            status: str
-                status of the job id
-            log_msg: str
-                log message of the last change
+
+        Args:
+            job_id (str): job id of the run
+
+        Returns:
+            str: status of the job id
+            str: log message of the last change
         """
         status = 'running'
         log_msg = ''

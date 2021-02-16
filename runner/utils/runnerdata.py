@@ -1,4 +1,4 @@
-""" Utility to handle scheduler data"""
+""" Utility to handle runner data"""
 import json
 import os
 from copy import copy
@@ -9,38 +9,61 @@ from runner.utils import json_keys2int
 
 
 class RunnerData():
-    """Class to handle runner data"""
+    """Class to handle runner data using helper function
+
+    Example:
+
+      >>> # typical runner data
+      >>> data =  {'scheduler_options': {'-N': 1,
+      ...                                '-n': 16,
+      ...                                '-t': '0:5:0:0',
+      ...                                '--mem-per-cpu': 2000},
+      ...          'name': '<calculation name>',
+      ...          'parents': [],
+      ...          'tasks': [['python', '<filename>'], # simple python run
+      ...                    ['python', '<filename>', <params>],
+      ...                    ['python', '<filename>', <params>, '<pycommand>'],
+      ...                    ['shell', '<command>']] # any shell command
+      ...          'files': {'<filename1>': '<contents, string or bytes>',
+      ...                    '<filename2>': '<contents, string or bytes>'
+      ...                   }
+      ...          'keep_run': False
+      ...          'log': ''}
+      >>> runnerdata = RunnerData(data)
+
+      where:
+
+        * <params>: can be a dictionary of parameters,
+          or an empty {} for no parameters
+        * <pycommand>: is a string of python command,
+          example, 'python3' or 'mpirun -n 4 python3'
+          default 'python'
+        * keep_run: is a bool to keep run after status done, otherwise
+          the run folder is deleted.
+
+      However, the :class:`RunnerData` can be used to generate the data
+      stepwise, using the functions provided as::
+
+        >>> runnerdata = RunnerData()
+        >>> runnerdata.add_file('<filename>')
+        >>> runnerdata.append_tasks('python',
+        ...                         '<filename>',
+        ...                         params_dict,
+        ...                         '<pycommand>')
+        >>> runnerdata.add_scheduler_options({'-N': 1,
+        ...                                   '-n': 16,
+        ...                                   '-t': '0:5:0:0',
+        ...                                   '--mem-per-cpu': 2000})
+        >>> # and so on
+
+    Args:
+        data (dict): runner data in atoms data
+
+    Attributes:
+        data: dictionary of the runner data
+    """
 
     def __init__(self, data=None):
-        """
-        helper function to get complete scheduler data
-        Example:
-            {'scheduler_options': {'-N': 1,
-                                   '-n': 16,
-                                   '-t': '0:5:0:0',
-                                   '--mem-per-cpu': 2000},
-             'name': '<calculation name>',
-             'parents': [],
-             'tasks': [['python', '<filename>'], # simple python run
-                       ['python', '<filename>', <params>],
-                       ['python', '<filename>', <params>, '<py_commands>'],
-                       ['shell', '<command>']] # any shell command
-             'files': {'<filename1>': '<contents, string or bytes>',
-                       '<filename2>': '<contents, string or bytes>'
-                      }
-             'keep_run': False
-             'log': ''}
-        where <params> can be a dictionary of parameters,
-                       or an empty {} for no parameters
-              <py_commands> is a string of python command,
-                            example, 'python3' or 'mpirun -n 4 python3'
-                            default 'python'
-              keep_run is a bool to keep run after status done, otherwise
-                       the run folder is deleted.
-        Parameters
-            data: dict
-                scheduler data in atoms data
-        """
         data_temp = {'scheduler_options': {},
                      'name': 'untitled_run',
                      'tasks': [],
@@ -55,7 +78,7 @@ class RunnerData():
 
     @property
     def name(self):
-        """getter for name"""
+        """Name of the RunnerData"""
         return self.data['name']
 
     @name.setter
@@ -65,7 +88,7 @@ class RunnerData():
 
     @property
     def tasks(self):
-        """getter for tasks"""
+        """tasks in RunnerData"""
         return self.data['tasks']
 
     @tasks.setter
@@ -75,23 +98,25 @@ class RunnerData():
 
     def append_tasks(self, task_type, *args):
         """Appends task to tasks
+
         Example:
+            >>> rdat = runner.RunnerData()
             >>> # shell task_type followed by shell command
-            >>> self.append_tasks('shell', 'module load anaconda3')
+            >>> rdat.append_tasks('shell', 'module load anaconda3')
             >>> # python task_type followed by python file
-            >>> self.append_tasks('python', 'get_energy.py')
+            >>> rdat.append_tasks('python', 'get_energy.py')
             >>> # python task_type with parameters
-            >>> self.append_tasks('python', 'get_energy.py', {'param': 0})
+            >>> rdat.append_tasks('python', 'get_energy.py', {'param': 0})
             >>> # python task_type with python execute command
             >>> # NB: the 3rd argument has to be parameters, if no parameters
             >>> # empty dict has to be given.
             >>> # default: python <python file>
             >>> # to execute: mpirun -n 4 python3 get_energy.py
-            >>> self.append_tasks('python', 'get_energy.py', {},
-                                  'mpirun -n 4 python3')
+            >>> rdat.append_tasks('python', 'get_energy.py', {},
+            ...                   'mpirun -n 4 python3')
 
 
-        Parameters:
+        Args:
             task_type (str): task type, 'shell' or 'python'
             *args: args for task type, see example
                 for shell task_type, args is shell command (str)
@@ -114,7 +139,7 @@ class RunnerData():
 
     @property
     def files(self):
-        """getter for files"""
+        """Files in RunnerData"""
         return self.data['files']
 
     @files.setter
@@ -124,6 +149,7 @@ class RunnerData():
 
     def add_file(self, filename, add_as=None):
         """Add file to runner data
+
         Args:
             filename (str): name of the file
             add_as (str): name the file should be added as"""
@@ -141,6 +167,7 @@ class RunnerData():
 
     def add_files(self, filenames, add_as=None):
         """Adds files to runner data
+
         Args:
             filenames (list): list of filenames to be added
             add_as (list, optional): list of name the file should be
@@ -161,7 +188,7 @@ class RunnerData():
 
     @property
     def scheduler_options(self):
-        """getter for scheduler_options"""
+        """Scheduler_options in RunnerData"""
         return self.data['scheduler_options']
 
     @scheduler_options.setter
@@ -170,13 +197,16 @@ class RunnerData():
         self.data['scheduler_options'] = scheduler_options
 
     def add_scheduler_options(self, scheduler_options):
-        """Adds scheduler_options to runner data"""
+        """Adds scheduler_options to runner data
+
+        Args:
+            scheduler_options (dict): dictionary of options"""
         _test_scheduler_options(scheduler_options)
         self.data['scheduler_options'].update(scheduler_options)
 
     @property
     def parents(self):
-        """getter for parents"""
+        """Parent simulations of the row"""
         return self.data['parents']
 
     @parents.setter
@@ -187,7 +217,12 @@ class RunnerData():
 
     @property
     def keep_run(self):
-        """getter for keep_run"""
+        """Stores bool, indicates if the run should be saved after completing
+        tasks
+
+        .. note::
+            Failed run folders are not deleted regardless of keep_run value. 
+            This aids in the debugging of the run."""
         return self.data['keep_run']
 
     @keep_run.setter
@@ -198,17 +233,13 @@ class RunnerData():
     def get_runner_data(self, _skip_empty_task_test=False):
         """
         helper function to get complete runner data
-        Returns
-            scheduler_options: dict
-                containing all options to run a job
-            name: str
-                name of the calculation, for tags
-            parents: list
-                list of parents attached to the present job
-            tasks: list
-                list of tasks to perform
-            files: dict
-                dictionary of filenames as key and strings as value
+
+        Returns:
+            dict: containing all options to run a job
+            str: name of the calculation, for tags
+            list: list of parents attached to the present job
+            list: list of tasks to perform
+            dict: dictionary of filenames as key and strings as value
         """
         data = self.data
         scheduler_options = {}
@@ -239,9 +270,10 @@ class RunnerData():
 
     def to_db(self, database, ids):
         """add run data to ids in database
-        Parameters:
-            databse: ase database
-            ids: ids in the database"""
+
+        Args:
+            database (str): ase database
+            ids (int, or list): ids in the database"""
         if not isinstance(ids, (tuple, list)):
             ids = [ids]
         # test if data is appropriate
@@ -253,16 +285,24 @@ class RunnerData():
                 fdb.update(id_, data=data)
 
     def to_json(self, filename):
-        """Saves RunnerData to json"""
+        """Saves RunnerData to json
+
+        Args:
+            filename (str): name of `json` file"""
         with open(filename, 'w') as fio:
             json.dump(self.data, fio)
 
     @classmethod
     def from_db(cls, database, id_):
         """get RunnerData from database
-        Parameters:
-            databse: ase database
-            id_: id in the database
+
+        Args:
+            databse (str): ase database
+            id_ (int): id in the database
+
+        Returns:
+            :class:`~runner.utils.runnerdata.RunnerData`: class defining
+            runner data
         """
         with db.connect(database) as fdb:
             data = fdb.get(id_).data['runner']
@@ -271,7 +311,15 @@ class RunnerData():
 
     @classmethod
     def from_json(cls, filename):
-        """get RunnerData from json"""
+        """get RunnerData from json
+
+        Args:
+            filename (str): name of `json` file
+
+        Returns:
+            :class:`~runner.utils.runnerdata.RunnerData`: class defining
+            runner data
+        """
         with open(filename) as fio:
             data = json.load(fio, object_hook=json_keys2int)
         return cls(data)
@@ -368,3 +416,4 @@ def _test_scheduler_options(scheduler_options, log_msg=''):
 
 def _tasks2file(tasks):
     """converts tasks to run_scripts and files"""
+    pass

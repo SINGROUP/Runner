@@ -1,5 +1,5 @@
 """
-Utility tools for schedulers
+Utility tools for runners
 """
 import os
 import ase.db as db
@@ -32,7 +32,9 @@ with open("atoms.pkl", "wb") as f:
 
 
 class Cd:
-    """Context manager for changing the current working directory"""
+    """Context manager for changing the current working directory
+
+    :meta private:"""
     def __init__(self, new_path, mkdir=True):
         self.new_path = os.path.expanduser(new_path)
         self.saved_path = None
@@ -51,6 +53,8 @@ class Cd:
 def json_keys2int(dict_):
     """ Converts dict keys to int if all dict keys can be converted to int
     JSON only has string keys, its a compromise to save int keys, if all int
+
+    :meta private:
     """
     if isinstance(dict_, dict):
         try:
@@ -60,44 +64,49 @@ def json_keys2int(dict_):
     return dict_
 
 
-def get_status(id_, database):
-    """Gets status of id_ in the database
+def get_status(input_id, database):
+    """Gets status of input_id in the database
+
     Args:
-        id_ (int): id_ in the database
+        input_id (int): input_id in the database
         database (str): the database name
+
     Returns:
         str: the status of the run
     """
-    id_ = int(id_)
+    input_id = int(input_id)
     with db.connect(database) as fdb:
-        status = fdb.get(id_).get('status', 'No status')
+        status = fdb.get(input_id).get('status', 'No status')
     return status
 
 
-def submit(id_, database, runner_name):
-    """Submits id_ in the database
+def submit(input_id, database, runner_name):
+    """Submits input_id in the database
+
     Args:
-        id_ (int): id_ in the database
+        input_id (int): input_id in the database
         database (str): the database name
         runner_name (str): name of the runner
+
     Returns:
         str: the status of the run
     """
-    id_ = int(id_)
+    input_id = int(input_id)
     with db.connect(database) as fdb:
-        fdb.update(id_, status=f'submit:{runner_name}')
+        fdb.update(input_id, status=f'submit:{runner_name}')
 
 
-def cancel(id_, database):
-    """Gets status of id_ in the database
+def cancel(input_id, database):
+    """Cancel run of input_id in the database
+
     Args:
-        id_ (int): id_ in the database
+        input_id (int): input_id in the database
         database (str): the database name
     """
-    id_ = int(id_)
+    input_id = int(input_id)
     with db.connect(database) as fdb:
-        row = fdb.get(id_)
+        row = fdb.get(input_id)
         if 'status' in row:
             status = row.status.split(':')
             status[0] = 'cancel'
-            fdb.update(id_, status=':'.join(status))
+            fdb.update(input_id, status=':'.join(status))

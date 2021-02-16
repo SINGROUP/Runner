@@ -30,6 +30,22 @@ default_files = ['run.sh', 'batch.slrm', 'atoms.pkl']
 
 
 class BaseRunner(ABC):
+    """
+    Runner runs tasks
+
+    Args:
+        database (str): ASE database to connect
+        interpreter (str): the interpreter for the shell
+        scheduler_options (dict): scheduler_options local to the system
+        tasks (list): pre-tasks local to the system
+        files (dict): pre-tasks files local to the system
+        max_jobs (int): maximum number of jobs running at an instance
+        cycle_time (int): time in seconds
+        keep_run (bool): keep the folder in which the run was performed
+        run_folder (str): the folder that needs to be populated
+        multi_fail (int): The number of re-runs on failure
+        logfile (str): log file for logging
+    """
 
     def __init__(self,
                  name,
@@ -44,32 +60,7 @@ class BaseRunner(ABC):
                  run_folder='./',
                  multi_fail=0,
                  logfile=None):
-        """
-        Runner runs tasks
-        Parameters
-            database: ASE database
-                the database to connect
-            interpreter: str
-                the interpreter for the shell
-            scheduler_options: dict
-                scheduler_options local to the system
-            tasks: list
-                pre-tasks local to the system
-            files: dict
-                pre-tasks files local to the system
-            max_jobs: int
-                maximum number of jobs running at an instance
-            cycle_time: int
-                time in seconds
-            keep_run: bool
-                keep the folder in which the run was performed
-            run_folder: str
-                the folder that needs to be populated
-            multi_fail: int
-                The number of re-runs on failure
-            logfile: str
-                log file for logging
-        """
+
         # logging
         if logfile:
             file_handler = logging.FileHandler(logfile)
@@ -104,6 +95,7 @@ class BaseRunner(ABC):
 
     def to_database(self, update=False):
         """attaches runner to database
+
         Args:
             update (bool): optional, update runner info if already exists"""
         dict_ = {}
@@ -140,9 +132,14 @@ class BaseRunner(ABC):
     @classmethod
     def from_database(cls, name, database):
         """Get runner from database
+
         Args:
             name (str): name of runner
-            database (str): database"""
+            database (str): database
+
+        Returns:
+            :class:`~runner.runner.BaseRunner`: returns relevant runner class
+        """
 
         with db.connect(database) as fdb:
             meta = fdb.metadata
@@ -171,13 +168,20 @@ class BaseRunner(ABC):
             meta['runners'][self.name]['running'] = False
             fdb.metadata = meta
 
-    def get_job_id(self, id_):
+    def get_job_id(self, input_id):
         """
-        Returns job_id of id_
+        Returns job id (slurm id, process id etc) depending on workflow
+        manager of a running row.
+
+        Args:
+            input_id (int): Row id
+
+        Returns:
+            int or None: job_id of input_id if running, else None
         """
         try:
             with Cd(self.run_folder, mkdir=False):
-                with Cd(str(id_), mkdir=False):
+                with Cd(str(input_id), mkdir=False):
                     with open('job.id') as file_o:
                         job_id = file_o.readline().strip()
             return job_id
@@ -190,16 +194,14 @@ class BaseRunner(ABC):
                 scheduler_options):
         """
         Abstract method to define submit
-        Parameters
-            tasks: list
-                list of tasks
-            scheduler_options: dictionary
-                dictionary of headers to be added
-        Returns
-            job_id: str
-                Job id of the successful run, None if failed
-            log_msg: str
-                log message of the run
+
+        Args:
+            tasks (list): list of tasks
+            scheduler_options (dict): dictionary of headers to be added
+
+        Returns:
+            str: Job id of the successful run, None if failed
+            str: log message of the run
         """
         pass
 
@@ -208,10 +210,11 @@ class BaseRunner(ABC):
         """
         cancel job id, if job id doesn't exist
         then do nothing and raise no error
-        Parameters
-            job_id: str or None
-                job id to cancel
-        Returns
+
+        Args:
+            job_id (str or None): job id to cancel
+
+        Returns:
             None
         """
         pass
@@ -220,14 +223,13 @@ class BaseRunner(ABC):
     def _status(self, job_id):
         """
         return status of job_id
-        Parameters
-            job_id: str
-                job id of the run
-        Returns
-            status: str
-                status of the job id
-            log_msg: str
-                log message of the last change
+
+        Args:
+            job_id (str): job id of the run
+
+        Returns:
+            str: status of the job id
+            str: log message of the last change
         """
         pass
 
@@ -333,8 +335,10 @@ class BaseRunner(ABC):
 
     def get_status(self):
         '''
-        Returns status of id_
-        :return: status message
+        Returns ids of each status
+
+        Returns:
+            dict: dictionary of status, ids list
         '''
         # connect database
         fdb = db.connect(self.db)
