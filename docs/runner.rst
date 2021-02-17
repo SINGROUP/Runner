@@ -13,7 +13,8 @@ simulations (or other related functions) are to be performed.
     - Description
   * - :class:`~runner.runners.slurm.SlurmRunner`
     - Slurm
-    - `A cluster management and job scheduling system <slurm.schedmd.com>`_
+    - `A cluster management and job scheduling system 
+      <https://slurm.schedmd.com>`_
   * - :class:`~runner.runners.terminal.TerminalRunner`
     - Terminal
     - A terminal based runner for simple tasks

@@ -1,0 +1,5 @@
+numpy==1.18.5
+numpydoc==1.0.0
+ase==3.19.0
+psutil==5.7.3
+docutils==0.16

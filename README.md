@@ -1,5 +1,5 @@
 # Runner
-Tools to easly schedule atomistic simulation workflow
+Tools to easly schedule atomistic simulation workflow. Docs available at [readthedoc](https://runner.readthedocs.io/en/latest/index.html)
 
 ## Installation
 
