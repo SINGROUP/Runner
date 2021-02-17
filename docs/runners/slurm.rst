@@ -7,28 +7,28 @@ Slurm
 
 Setting up a ``slurm runner``::
 
-   from runner import SlurmRunner
-   runner_ = SlurmRunner('myRunner',
-                         'myDatabase.db',
-                         scheduler_options={'--account': 'myAccount'},
-                         tasks=[['shell', 'module load anaconda3']],
-                         max_jobs=5,
-                         cycle_time=30,
-                         keep_run=False,
-                         run_folder='./')
+   >>> from runner import SlurmRunner
+   >>> runner_ = SlurmRunner('myRunner',
+   ...                       'myDatabase.db',
+   ...                       scheduler_options={'--account': 'myAccount'},
+   ...                       tasks=[['shell', 'module load anaconda3']],
+   ...                       max_jobs=5,
+   ...                       cycle_time=30,
+   ...                       keep_run=False,
+   ...                       run_folder='./')
 
 This runner can start spooling via::
 
-    runner_.spool()
+   >>> runner_.spool()
 
 or the runner can be attached to the database::
 
-    runner_.to_database()
+   >>> runner_.to_database()
 
 to be run from the respective machine::
 
-    runner_ = SlurmRunner.from_database('myRunner', 'myDatabase.db')
-    runner_.spool()
+   >>> runner_ = SlurmRunner.from_database('slurm:myRunner', 'myDatabase.db')
+   >>> runner_.spool()
 
 or can be run via :ref:`cli` tools.
 

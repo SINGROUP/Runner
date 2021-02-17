@@ -42,6 +42,9 @@ class SlurmRunner(BaseRunner):
     Slurm runner
 
     Args:
+        name (str): The name of the runner. It is saved as 
+            `slurm:<given_name>`. Used to identify from other runners attached
+            to the database.
         database (str): ASE database to connect
         interpreter (str): the interpreter for the shell
         scheduler_options (dict): scheduler_options local to the system
@@ -68,7 +71,7 @@ class SlurmRunner(BaseRunner):
                  run_folder='./',
                  multi_fail=0,
                  logfile=None):
-        if not name.startswith('slurm'):
+        if not name.startswith('slurm:'):
             name = 'slurm:' + name
         super().__init__(name=name,
                          database=database,

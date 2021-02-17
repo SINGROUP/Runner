@@ -88,8 +88,6 @@ def submit(input_id, database, runner_name):
         database (str): the database name
         runner_name (str): name of the runner
 
-    Returns:
-        str: the status of the run
     """
     input_id = int(input_id)
     with db.connect(database) as fdb:

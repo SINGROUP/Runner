@@ -50,10 +50,14 @@ to simplify the genration of this data.
    * :ref:`slurm_scheduler`
    * :ref:`terminal_scheduler`
 
+.. _parents_format:
+
 :Parents: are added as::
 
     >>> # setting parents as row id 2 and 3 form the same database
     >>> runnerdata.parents = [2, 3]
+
+.. _file_format:
 
 :Files: are added as::
 
@@ -73,6 +77,11 @@ to simplify the genration of this data.
     * The rest parameters are passed as a dictionary, as defined in the `tasks`
     * The function should return an ``atoms`` object, to be added in-place at
       the row being run.
+    * The `key_value_pairs` stored in `ase.Atoms.info` of the returned 
+      ``atoms`` object, is updated in the database.
+    * The ase.db.row.data is updated with the rest of `ase.Atoms.info`.
+
+.. _tasks_format:
 
 :Tasks: ``Runner`` supports ``shell`` and ``python`` tasks.
   ``shell`` task can be added as::

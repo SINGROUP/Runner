@@ -8,6 +8,9 @@ class TerminalRunner(BaseRunner):
     Terminal Runner
 
     Args:
+        name (str): The name of the runner. It is saved as 
+            `terminal:<given_name>`. Used to identify from other runners 
+            attached to the database.
         database (str): ASE database to connect
         interpreter (str): the interpreter for the shell
         scheduler_options (dict): scheduler_options local to the system
@@ -34,7 +37,7 @@ class TerminalRunner(BaseRunner):
                  run_folder='./',
                  multi_fail=0,
                  logfile=None):
-        if not name.startswith('terminal'):
+        if not name.startswith('terminal:'):
             name = 'terminal:' + name
         super().__init__(name=name,
                          database=database,

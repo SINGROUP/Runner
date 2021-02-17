@@ -7,27 +7,28 @@ Terminal
 
 Similarily a ``terminal runner`` can be setup::
 
-   from runner import TerminalRunner
-   runner_ = TerminalRunner('myRunner',
-                            'myDatabase.db',
-                            tasks=[['shell', 'module load anaconda3']],
-                            max_jobs=5,
-                            cycle_time=30,
-                            keep_run=False,
-                            run_folder='./')
+   >>> from runner import TerminalRunner
+   >>> runner_ = TerminalRunner('myRunner',
+   ...                          'myDatabase.db',
+   ...                          tasks=[['shell', 'module load anaconda3']],
+   ...                          max_jobs=5,
+   ...                          cycle_time=30,
+   ...                          keep_run=False,
+   ...                          run_folder='./')
 
 This runner can start spooling via::
 
-    runner_.spool()
+   >>> runner_.spool()
 
 or the runner can be attached to the database::
 
-    runner_.to_database()
+   >>> runner_.to_database()
 
 to be run from the respective machine::
 
-    runner_ = TerminalRunner.from_database('myRunner', 'myDatabase.db')
-    runner_.spool()
+   >>> runner_ = TerminalRunner.from_database('terminal:myRunner',
+   ...                                        'myDatabase.db')
+   >>> runner_.spool()
 
 or can be run via :ref:`cli` tools.
 
