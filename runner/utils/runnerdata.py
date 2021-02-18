@@ -68,6 +68,7 @@ class RunnerData():
                      'name': 'untitled_run',
                      'tasks': [],
                      'files': {},
+                     'parents': [],
                      'keep_run': False}
         if data:
             data_temp.update(data)

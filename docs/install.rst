@@ -28,3 +28,10 @@ which can be installed as::
     $ git clone https://github.com/SINGROUP/Runner.git
     $ cd Runner
     $ pip install . --upgrade
+
+
+To update the installation::
+
+    $ cd Runner
+    $ git pull
+    $ pip install . --upgrade

@@ -12,7 +12,7 @@ import textwrap
 from ase.db import connect
 from ase.io.formats import string2index
 from runner.runners.__init__ import runner_type2func
-from runner.utils import submit, cancel, get_status
+from runner.utils import submit, cancel, get_status, get_graphical_status
 
 
 def main(prog='runner', args=None):
@@ -131,6 +131,21 @@ class CLICommand:
         subparser.add_argument('id', type=string2index,
                                help='id of the row in the database')
 
+        # check graphical status of a row
+        desc = 'get graphical status of the workflow for a row'
+        subparser = subparsers.add_parser('graphical-status',
+                                          formatter_class=Formatter,
+                                          parents=[parent],
+                                          description=desc,
+                                          help=desc)
+        subparser.add_argument('id', type=int,
+                               help='id of the row in the database')
+        subparser.add_argument('--add-tasks', action='store_true',
+                               help='add tasks information to the graph')
+        subparser.add_argument('-o', '--filename', type=str,
+                               default='graph.pdf',
+                               help='filename of the graph (pdf, png, svg)')
+
     @staticmethod
     def run(args):
         """run cli args"""
@@ -202,6 +217,9 @@ class CLICommand:
                                  args.id.stop or fdb.count()+1,
                                  args.id.step or 1):
                     print(f'{id_:>4} {get_status(id_, args.db):>30}')
+            elif args.action == 'graphical-status':
+                get_graphical_status(args.filename, args.id,
+                                     args.db, args.add_tasks)
 
 
 class Formatter(argparse.HelpFormatter):

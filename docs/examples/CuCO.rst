@@ -195,3 +195,20 @@ accordingly.
 .. figure:: /examples/ase_database.png
 
     Snapshot of `ASE database browser GUI <https://wiki.fysik.dtu.dk/ase/ase/db/db.html#browse-database-with-your-web-browser>`_ after completing all runs
+
+#. Graphical visualisation of the workflow
+==========================================
+
+We can visualise the graph of the workflow made to get the last row
+, while the ``Runner`` runs the rows::
+
+    >>> from runner.utils import get_graphical_status
+    >>> get_graphical_status('graph.png', id_min, 'database.db',
+    ...                      add_tasks=True)
+
+or can be run via :ref:`cli` tools.
+
+.. figure:: /examples/graph.png
+
+   Snapshot of the graph of the entire workflow needed to generate the last 
+   row, after completing all runs.
