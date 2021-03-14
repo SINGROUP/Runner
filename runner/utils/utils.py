@@ -110,13 +110,13 @@ def cancel(input_id, database):
             fdb.update(input_id, status=':'.join(status))
 
 
-def get_graphical_status(filename, input_id, database, add_tasks=False):
+def get_graphical_status(filename, input_ids, database, add_tasks=False):
     """Returns dot graph of the status of all parents of
-    input_id
+    input_ids
 
     Args:
         filename (str): name of file to store the graph (pdf, png or svg)
-        input_id (int): input_id in the database
+        input_ids (int or list): input_id(s) in the database
         database (str): the database name
         add_tasks (bool): adds tasks to the graph
     """
@@ -170,8 +170,14 @@ def get_graphical_status(filename, input_id, database, add_tasks=False):
             dot.node(f'{name}-tasks-{i}', node_str,
                      shape='record')
             dot.edge(f'{name}-tasks-{i}', f'{name}-tasks:{i}')
+        # add to the runnerdata
+        dot.edge(f'{name}-tasks', name)
 
-    def spider(id_, dot):
+    def spider(id_, seen_ids, dot):
+        if id_ in seen_ids:
+            return
+        seen_ids.append(id_)
+
         formula, name, parents, status, tasks = get_info(id_, database)
         dot.node(str(id_), label=f'{id_}: {formula}',
                  style='filled',
@@ -189,17 +195,18 @@ def get_graphical_status(filename, input_id, database, add_tasks=False):
 
             if add_tasks:
                 add_task_graph(node_name, tasks, dot)
-                dot.edge(f'{node_name}-tasks', node_name)
 
             # now connect it to the formula node
             dot.edge(node_name, str(id_))
 
             # add parents
             for parent in parents:
-                spider(parent, dot)
+                spider(parent, seen_ids, dot)
                 # connect the parent
                 dot.edge(str(parent), node_name)
 
+    if isinstance(input_ids, int):
+        input_ids = [input_ids]
     status_colors = {'running': 'yellow',
                      'failed': 'red',
                      'submit': 'lightgreen',
@@ -207,7 +214,9 @@ def get_graphical_status(filename, input_id, database, add_tasks=False):
                      'done': 'green',
                      'No status': 'white'}
     dot = Digraph(comment='The Runner workflow', strict=True)
-    spider(input_id, dot)
+    seen_ids = []
+    for input_id in input_ids:
+        spider(input_id, seen_ids, dot)
     fileformat = filename.split('.')[-1]
     filename = '.'.join(filename.split('.')[:-1])
     dot.render(filename, format=fileformat)
