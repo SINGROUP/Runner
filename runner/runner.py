@@ -70,7 +70,7 @@ class BaseRunner(ABC):
 
         logger.debug('Initialising')
         self.name = name
-        self.db = database
+        self.fdb = db.connect(database)
         self.max_jobs = max_jobs
         self.cycle_time = cycle_time
         self.keep_run = keep_run
@@ -110,8 +110,7 @@ class BaseRunner(ABC):
         dict_['files'] = self.files
         dict_['running'] = False
 
-        with db.connect(self.db) as fdb:
-            meta = fdb.metadata
+        meta = self.fdb.metadata
 
         runners = meta.get('runners', {})
 
@@ -126,8 +125,7 @@ class BaseRunner(ABC):
             meta['runners'] = {}
 
         meta['runners'].update({self.name: dict_})
-        with db.connect(self.db) as fdb:
-            fdb.metadata = meta
+        self.fdb.metadata = meta
 
     @classmethod
     def from_database(cls, name, database):
@@ -141,8 +139,8 @@ class BaseRunner(ABC):
             :class:`~runner.runner.BaseRunner`: returns relevant runner class
         """
 
-        with db.connect(database) as fdb:
-            meta = fdb.metadata
+        fdb = db.connect(database)
+        meta = fdb.metadata
 
         try:
             dict_ = meta['runners'][name]
@@ -156,17 +154,15 @@ class BaseRunner(ABC):
 
     def _set_running(self):
         """notify database that runner is running"""
-        with db.connect(self.db) as fdb:
-            meta = fdb.metadata
-            meta['runners'][self.name]['running'] = True
-            fdb.metadata = meta
+        meta = self.fdb.metadata
+        meta['runners'][self.name]['running'] = True
+        self.fdb.metadata = meta
 
     def _unset_running(self):
         """notify database that runner is not running"""
-        with db.connect(self.db) as fdb:
-            meta = fdb.metadata
-            meta['runners'][self.name]['running'] = False
-            fdb.metadata = meta
+        meta = self.fdb.metadata
+        meta['runners'][self.name]['running'] = False
+        self.fdb.metadata = meta
 
     def get_job_id(self, input_id):
         """
@@ -239,28 +235,27 @@ class BaseRunner(ABC):
         """
         # get status of running jobs
         update_ids_status = {}
-        with db.connect(self.db) as sdb:
-            for row in sdb.select(status='running:{}'.format(self.name),
-                                  columns=['id']):
-                id_ = row.id
-                logger.debug('getting job id {}'.format(id_))
-                job_id = self.get_job_id(id_)
-                if job_id:
-                    logger.debug('job_id success; getting status')
-                    # !TODO: update scheduler options with cpu usage
-                    with Cd(self.run_folder, mkdir=False):
-                        with Cd(str(id_), mkdir=False):
-                            status, log_msg = self._status(job_id)
-                else:
-                    # oops
-                    logger.debug('job_id fail; updating status')
-                    status, atoms, log_msg = ['failed:{}'.format(self.name),
-                                              None,
-                                              '{}\nJob id lost\n'
-                                              ''.format(datetime.now())]
-                if not status.startswith('running'):
-                    # if not still running, update status and add log message
-                    update_ids_status[id_] = [status, log_msg]
+        for row in self.fdb.select(status='running:{}'.format(self.name),
+                                   columns=['id']):
+            id_ = row.id
+            logger.debug('getting job id {}'.format(id_))
+            job_id = self.get_job_id(id_)
+            if job_id:
+                logger.debug('job_id success; getting status')
+                # !TODO: update scheduler options with cpu usage
+                with Cd(self.run_folder, mkdir=False):
+                    with Cd(str(id_), mkdir=False):
+                        status, log_msg = self._status(job_id)
+            else:
+                # oops
+                logger.debug('job_id fail; updating status')
+                status, atoms, log_msg = ['failed:{}'.format(self.name),
+                                          None,
+                                          '{}\nJob id lost\n'
+                                          ''.format(datetime.now())]
+            if not status.startswith('running'):
+                # if not still running, update status and add log message
+                update_ids_status[id_] = [status, log_msg]
 
         # update status for jobs that stopped running
         for id_, values in update_ids_status.items():
@@ -286,24 +281,23 @@ class BaseRunner(ABC):
             # run post-tasks
             if status.startswith('done'):
                 logger.debug('status: done')
-                with db.connect(self.db) as fdb:
-                    # getting data
-                    logger.debug('getting data')
-                    data = fdb.get(id_).data
+                # getting data
+                logger.debug('getting data')
+                data = self.fdb.get(id_).data
 
-                    # updating status and log
-                    _ = data['runner'].get('log', '') + log_msg
-                    data['runner']['log'] = _
-                    # remove old data
-                    atoms.info.pop('data', None)
-                    atoms.info.pop('unique_id', None)
-                    key_value_pairs = atoms.info.pop('key_value_pairs', {})
-                    # update data
-                    key_value_pairs['status'] = status
-                    data.update(atoms.info)
-                    logger.debug('updating')
-                    fdb.update(id_, atoms=atoms, data=data,
-                               **key_value_pairs)
+                # updating status and log
+                _ = data['runner'].get('log', '') + log_msg
+                data['runner']['log'] = _
+                # remove old data
+                atoms.info.pop('data', None)
+                atoms.info.pop('unique_id', None)
+                key_value_pairs = atoms.info.pop('key_value_pairs', {})
+                # update data
+                key_value_pairs['status'] = status
+                data.update(atoms.info)
+                logger.debug('updating')
+                self.fdb.update(id_, atoms=atoms, data=data,
+                                **key_value_pairs)
                 # delete run if keep_run is False
                 if not self.keep_run and not data['runner'].get('keep_run',
                                                                 False):
@@ -312,22 +306,21 @@ class BaseRunner(ABC):
                             shutil.rmtree(str(id_))
             else:
                 logger.debug('status:failed')
-                with db.connect(self.db) as fdb:
-                    # getting data
-                    logger.debug('getting data')
-                    data = fdb.get(id_).data
+                # getting data
+                logger.debug('getting data')
+                data = self.fdb.get(id_).data
 
-                    if status.startswith('failed'):
-                        if 'fail_count' not in data['runner']:
-                            data['runner']['fail_count'] = 1
-                        else:
-                            data['runner']['fail_count'] += 1
+                if status.startswith('failed'):
+                    if 'fail_count' not in data['runner']:
+                        data['runner']['fail_count'] = 1
+                    else:
+                        data['runner']['fail_count'] += 1
 
-                    # updating status and log
-                    _ = data['runner'].get('log', '') + log_msg
-                    data['runner']['log'] = _
-                    logger.debug('updating')
-                    fdb.update(id_, status=status, data=data)
+                # updating status and log
+                _ = data['runner'].get('log', '') + log_msg
+                data['runner']['log'] = _
+                logger.debug('updating')
+                self.fdb.update(id_, status=status, data=data)
 
             # print status
             logger.info('Id {} finished with status: {}'.format(id_,
@@ -340,9 +333,6 @@ class BaseRunner(ABC):
         Returns:
             dict: dictionary of status, ids list
         '''
-        # connect database
-        fdb = db.connect(self.db)
-
         # status dict with ids in different status
         status_dict = {'done:{}'.format(self.name): [],
                        'running:{}'.format(self.name): [],
@@ -352,7 +342,7 @@ class BaseRunner(ABC):
                        'submit:{}'.format(self.name): []}
 
         for status in status_dict:
-            for row in fdb.select(status=status, columns=['id']):
+            for row in self.fdb.select(status=status, columns=['id']):
                 status_dict[status].append(row.id)
 
         return status_dict
@@ -361,14 +351,11 @@ class BaseRunner(ABC):
         '''
         submits runs
         '''
-        ids_ = []
-        with db.connect(self.db) as fdb:
-            len_running = fdb.count(status='running:{}'.format(self.name))
-            for row in fdb.select(status='submit:{}'.format(self.name)):
-                ids_.append(row.id)
         # submiting pending jobs
         sent_jobs = 0
-        for id_ in ids_:
+        len_running = self.fdb.count(status='running:{}'.format(self.name))
+        for row in self.fdb.select(status='submit:{}'.format(self.name)):
+            id_ = row.id
             logger.debug('submit {}'.format(id_))
             # default status, no submission if changes
             status = 'submit:{}'.format(self.name)
@@ -377,26 +364,24 @@ class BaseRunner(ABC):
             if sent_jobs >= self.max_jobs - len_running:
                 logger.debug('max jobs; break')
                 break
-            with db.connect(self.db) as fdb:
-                row = fdb.get(id_)
-                # get relevant data form atoms
-                logger.debug('get runner data')
-                runnerdata = RunnerData(row.data.get('runner', None))
-                try:
-                    (scheduler_options, name, parents, tasks,
-                     files) = runnerdata.get_runner_data()
-                except RuntimeError as err:
-                    logger.info('scheduler data corrupt/missing')
-                    # job failed if corrupt/missing scheduler info
-                    _ = row.data.get('runner', {})
-                    _.update({'log': '{}\n{}\n'
-                                     ''.format(datetime.now(), err),
-                              'fail_count': self.multi_fail + 1})
-                    row.data['runner'] = _
-                    fdb.update(id_,
-                               status='failed:{}'.format(self.name),
-                               data=row.data)
-                    continue
+            # get relevant data form atoms
+            logger.debug('get runner data')
+            runnerdata = RunnerData(row.data.get('runner', None))
+            try:
+                (scheduler_options, name, parents, tasks,
+                 files) = runnerdata.get_runner_data()
+            except RuntimeError as err:
+                logger.info('scheduler data corrupt/missing')
+                # job failed if corrupt/missing scheduler info
+                _ = row.data.get('runner', {})
+                _.update({'log': '{}\n{}\n'
+                                 ''.format(datetime.now(), err),
+                          'fail_count': self.multi_fail + 1})
+                row.data['runner'] = _
+                self.fdb.update(id_,
+                                status='failed:{}'.format(self.name),
+                                data=row.data)
+                continue
 
             # add local runner things
             scheduler_options.update(self.scheduler_options)
@@ -405,33 +390,31 @@ class BaseRunner(ABC):
 
             # get self and parents atoms object with everything
             logger.debug('getting atoms and parents')
-            with db.connect(self.db) as fdb:
-                row = fdb.get(id_)
-                atoms = []
-                try:
-                    atoms.append(row.toatoms(attach_calculator=True,
-                                             add_additional_information=True))
-                except AttributeError:
-                    atoms.append(row.toatoms(attach_calculator=False,
-                                             add_additional_information=True))
+            atoms = []
+            try:
+                atoms.append(row.toatoms(attach_calculator=True,
+                                         add_additional_information=True))
+            except AttributeError:
+                atoms.append(row.toatoms(attach_calculator=False,
+                                         add_additional_information=True))
 
-                # if any parent is not done, then don't submit
-                parents_done = True
-                for i in parents:
-                    parent_row = fdb.get(i)
-                    if not parent_row.status.startswith('done'):
-                        parents_done = False
-                        break
-                    # !TODO: catch exception if user does not have permission
-                    # to read parent
-                    try:
-                        _ = parent_row.toatoms(attach_calculator=True,
-                                               add_additional_information=True)
-                    except AttributeError:
-                        _ = parent_row.toatoms(attach_calculator=False,
-                                               add_additional_information=True)
-                    parent = _
-                    atoms.append(parent)
+            # if any parent is not done, then don't submit
+            parents_done = True
+            for i in parents:
+                parent_row = self.fdb.get(i)
+                if not parent_row.status.startswith('done'):
+                    parents_done = False
+                    break
+                # !TODO: catch exception if user does not have permission
+                # to read parent
+                try:
+                    _ = parent_row.toatoms(attach_calculator=True,
+                                           add_additional_information=True)
+                except AttributeError:
+                    _ = parent_row.toatoms(attach_calculator=False,
+                                           add_additional_information=True)
+                parent = _
+                atoms.append(parent)
 
             if not parents_done:
                 logger.debug('parents pending')
@@ -466,15 +449,13 @@ class BaseRunner(ABC):
                                          ''.format(job_id))
                             status = 'failed:{}'.format(self.name)
 
-            with db.connect(self.db) as fdb:
-                row = fdb.get(id_)
-                # updating database
-                data = row.data
-                _ = data['runner'].get('log', '') + log_msg
-                data['runner']['log'] = _
-                logger.debug('updating database')
-                # adds status, name of calculation, and data
-                fdb.update(id_, status=status, name=name, data=data)
+            # updating database
+            data = row.data
+            _ = data['runner'].get('log', '') + log_msg
+            data['runner']['log'] = _
+            logger.debug('updating database')
+            # adds status, name of calculation, and data
+            self.fdb.update(id_, status=status, name=name, data=data)
             logger.info('ID {} submission: '
                         '{}'.format(id_,
                                     (status if status.startswith('failed')
@@ -542,12 +523,8 @@ class BaseRunner(ABC):
         """
         Cancels run in cancel
         """
-        ids_ = []
-        with db.connect(self.db) as fdb:
-            for row in fdb.select(status='cancel:{}'.format(self.name)):
-                ids_.append(row.id)
-
-        for id_ in ids_:
+        for row in self.fdb.select(status='cancel:{}'.format(self.name)):
+            id_ = row.id
             logger.debug('cancel {}'.format(id_))
             job_id = self.get_job_id(id_)
             if job_id:
@@ -565,12 +542,11 @@ class BaseRunner(ABC):
                                    'no job was running\n'
                                    ''.format(datetime.now())]
             # updating status and log
-            with db.connect(self.db) as fdb:
-                data = fdb.get(id_).data
-                _ = data['runner'].get('log', '') + log_msg
-                data['runner']['log'] = _
-                logger.debug('update {}'.format(id_))
-                fdb.update(id_, status=status, data=data)
+            data = row.data
+            _ = data['runner'].get('log', '') + log_msg
+            data['runner']['log'] = _
+            logger.debug('update {}'.format(id_))
+            self.fdb.update(id_, status=status, data=data)
 
     def spool(self, _endless=True):
         '''
@@ -585,26 +561,23 @@ class BaseRunner(ABC):
         try:
             while True:
                 logger.info('Searching failed jobs')
-                with db.connect(self.db) as fdb:
-                    for row in fdb.select(status=f'failed:{self.name}'):
-                        id_ = row.id
-                        update = False
-                        if 'runner' not in row.data:
-                            row.data['runner'] = {}
-                        if 'fail_count' not in row.data['runner']:
-                            row.data['runner']['fail_count'] = (self.multi_fail
-                                                                + 1)
-                            update = True
-                        if (row.data['runner']['fail_count']
-                                <= self.multi_fail):
-                            # submit in next cycle
-                            # multiple updates for same id_ in "with"
-                            # statement is problematic
-                            logger.debug('re-submitted: {}'.format(id_))
-                            update = True
-                        if update:
-                            fdb.update(id_, status=f'submit:{self.name}',
-                                       data=row.data)
+                for row in self.fdb.select(status=f'failed:{self.name}'):
+                    id_ = row.id
+                    update = False
+                    if 'runner' not in row.data:
+                        row.data['runner'] = {}
+                    if 'fail_count' not in row.data['runner']:
+                        row.data['runner']['fail_count'] = (self.multi_fail
+                                                            + 1)
+                        update = True
+                    if (row.data['runner']['fail_count']
+                            <= self.multi_fail):
+                        # submit in next cycle
+                        logger.debug('re-submitted: {}'.format(id_))
+                        update = True
+                    if update:
+                        self.fdb.update(id_, status=f'submit:{self.name}',
+                                        data=row.data)
 
                 # cancel jobs
                 logger.info('Cancelling jobs, if jobs to cancel')
