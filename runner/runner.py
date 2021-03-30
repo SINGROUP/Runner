@@ -236,7 +236,7 @@ class BaseRunner(ABC):
         # get status of running jobs
         update_ids_status = {}
         for row in self.fdb.select(status='running:{}'.format(self.name),
-                                   columns=['id']):
+                                   columns=['id'], include_data=False):
             id_ = row.id
             logger.debug('getting job id {}'.format(id_))
             job_id = self.get_job_id(id_)
@@ -342,7 +342,8 @@ class BaseRunner(ABC):
                        'submit:{}'.format(self.name): []}
 
         for status in status_dict:
-            for row in self.fdb.select(status=status, columns=['id']):
+            for row in self.fdb.select(status=status, columns=['id'],
+                                       include_data=False):
                 status_dict[status].append(row.id)
 
         return status_dict
@@ -351,11 +352,15 @@ class BaseRunner(ABC):
         '''
         submits runs
         '''
+        len_running = self.fdb.count(status='running:{}'.format(self.name))
+        submit_ids = []
+        for row in self.fdb.select(status='submit:{}'.format(self.name),
+                                   columns=['id'], include_data=False):
+            submit_ids.append(row.id)
         # submiting pending jobs
         sent_jobs = 0
-        len_running = self.fdb.count(status='running:{}'.format(self.name))
-        for row in self.fdb.select(status='submit:{}'.format(self.name)):
-            id_ = row.id
+        for id_ in submit_ids:
+            row = self.fdb.get(id_)
             logger.debug('submit {}'.format(id_))
             # default status, no submission if changes
             status = 'submit:{}'.format(self.name)
@@ -523,8 +528,12 @@ class BaseRunner(ABC):
         """
         Cancels run in cancel
         """
-        for row in self.fdb.select(status='cancel:{}'.format(self.name)):
-            id_ = row.id
+        cancel_ids = []
+        for row in self.fdb.select(status='cancel:{}'.format(self.name),
+                                   columns=['id'], include_data=False):
+            cancel_ids.append(row.id)
+        for id_ in cancel_ids:
+            row = self.fdb.get(id_)
             logger.debug('cancel {}'.format(id_))
             job_id = self.get_job_id(id_)
             if job_id:
@@ -561,8 +570,12 @@ class BaseRunner(ABC):
         try:
             while True:
                 logger.info('Searching failed jobs')
-                for row in self.fdb.select(status=f'failed:{self.name}'):
-                    id_ = row.id
+                failed_ids = []
+                for row in self.fdb.select(status=f'failed:{self.name}',
+                                           columns=['id'], include_data=False):
+                    failed_ids.append(row.id)
+                for id_ in failed_ids:
+                    row = self.fdb.get(id_)
                     update = False
                     if 'runner' not in row.data:
                         row.data['runner'] = {}
