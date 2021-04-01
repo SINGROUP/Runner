@@ -11,8 +11,9 @@ a runner through a terminal.
 sub-command         description
 =================   ==============================================
 list-runners        list runners and their status
-remove-runner       remove runner from metadata
-start               start a runner from metadata
+remove-runner       remove runner from metadata of the database
+start               start a runner from metadata of the database
+stop                stop a runner through metadata flags
 submit              submit row(s) for run.
 cancel              cancel row(s) for run.
 status              check running status of row(s)

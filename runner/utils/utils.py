@@ -64,6 +64,16 @@ def json_keys2int(dict_):
     return dict_
 
 
+def get_db_connect(database):
+    """Returns :class:`~ase.db` from database string
+
+    :meta private:
+    """
+    if isinstance(database, str):
+        database = db.connect(database)
+    return database
+
+
 def get_status(input_id, database):
     """Gets status of input_id in the database
 
@@ -75,8 +85,8 @@ def get_status(input_id, database):
         str: the status of the run
     """
     input_id = int(input_id)
-    with db.connect(database) as fdb:
-        status = fdb.get(input_id).get('status', 'No status')
+    fdb = get_db_connect(database)
+    status = fdb.get(input_id).get('status', 'No status')
     return status
 
 
@@ -90,8 +100,8 @@ def submit(input_id, database, runner_name):
 
     """
     input_id = int(input_id)
-    with db.connect(database) as fdb:
-        fdb.update(input_id, status=f'submit:{runner_name}')
+    fdb = get_db_connect(database)
+    fdb.update(input_id, status=f'submit:{runner_name}')
 
 
 def cancel(input_id, database):
@@ -102,12 +112,12 @@ def cancel(input_id, database):
         database (str): the database name
     """
     input_id = int(input_id)
-    with db.connect(database) as fdb:
-        row = fdb.get(input_id)
-        if 'status' in row:
-            status = row.status.split(':')
-            status[0] = 'cancel'
-            fdb.update(input_id, status=':'.join(status))
+    fdb = get_db_connect(database)
+    row = fdb.get(input_id)
+    if 'status' in row:
+        status = row.status.split(':')
+        status[0] = 'cancel'
+        fdb.update(input_id, status=':'.join(status))
 
 
 def get_graphical_status(filename, input_ids, database, add_tasks=False):
@@ -131,14 +141,14 @@ def get_graphical_status(filename, input_ids, database, add_tasks=False):
         parents = []
         tasks = []
         name = None
-        with db.connect(database) as fdb:
-            row = fdb.get(input_id)
-            formula = row.formula
-            status = row.get('status', 'No status')
-            if 'runner' in row.data:
-                parents = row.data['runner'].get('parents', [])
-                tasks = row.data['runner']['tasks']
-                name = row.data['runner']['name']
+        fdb = get_db_connect(database)
+        row = fdb.get(input_id)
+        formula = row.formula
+        status = row.get('status', 'No status')
+        if 'runner' in row.data:
+            parents = row.data['runner'].get('parents', [])
+            tasks = row.data['runner']['tasks']
+            name = row.data['runner']['name']
         return formula, name, parents, status, tasks
 
     def add_task_graph(name, tasks, dot):
@@ -220,3 +230,68 @@ def get_graphical_status(filename, input_ids, database, add_tasks=False):
     fileformat = filename.split('.')[-1]
     filename = '.'.join(filename.split('.')[:-1])
     dot.render(filename, format=fileformat)
+
+
+def get_runner_list(database):
+    """Returns a dictionary of runners on database
+
+    Args:
+        database (str): ASE database of atoms
+
+    Returns:
+        dict: dict of runner names as keys and their running status as bool
+        value
+    """
+    fdb = get_db_connect(database)
+    runners_meta = fdb.metadata.get('runners', {})
+    runner_dict = {}
+    for key, value in runners_meta.items():
+        runner_dict[key] = value.get('running', False)
+    return runner_dict
+
+
+def remove_runner(runner_name, database, force=False):
+    """Removes runner from database, if not running
+
+    Args:
+        runner_name (str): name of the runner
+        database (str): ASE database
+        force (bool): forcefully remove runner, if running
+    """
+    fdb = get_db_connect(database)
+    meta = fdb.metadata
+    if 'runners' in meta:
+        if runner_name in meta['runners']:
+            if (not meta['runners'][runner_name].get('running', False)
+                    or force):
+                meta['runners'].pop(runner_name)
+                fdb.metadata = meta
+            else:
+                raise RuntimeError(f'{runner_name} is running')
+        else:
+            raise RuntimeError(f'{runner_name} does not exist')
+    else:
+        raise RuntimeError(f'no runners in {database}')
+
+
+def stop_runner(runner_name, database):
+    """Stops runner through database metadata
+    Runner isn't stopped immediately, but before it enters sleep.
+
+    Args:
+        runner_name (str): name of the runner
+        database (str): ASE database
+    """
+    fdb = get_db_connect(database)
+    meta = fdb.metadata
+    if 'runners' in meta:
+        if runner_name in meta['runners']:
+            if meta['runners'][runner_name].get('running', False):
+                meta['runners'][runner_name]['_explicit_stop'] = True
+                fdb.metadata = meta
+            else:
+                raise RuntimeError(f'{runner_name} is not running')
+        else:
+            raise RuntimeError(f'{runner_name} does not exist')
+    else:
+        raise RuntimeError(f'no runners in {database}')

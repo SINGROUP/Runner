@@ -12,7 +12,8 @@ import textwrap
 from ase.db import connect
 from ase.io.formats import string2index
 from runner.runners.__init__ import runner_type2func
-from runner.utils import submit, cancel, get_status, get_graphical_status
+from runner.utils import (submit, cancel, get_status, get_graphical_status,
+                          get_runner_list, remove_runner, stop_runner)
 
 
 def main(prog='runner', args=None):
@@ -51,7 +52,7 @@ class CLICommand:
                                            required=True)
 
         # list runners and their status
-        desc = 'list runners and their status'
+        desc = 'List runners and their status'
         subparser = subparsers.add_parser('list-runners',
                                           formatter_class=Formatter,
                                           parents=[parent],
@@ -59,16 +60,18 @@ class CLICommand:
                                           help=desc)
 
         # remove runner
-        desc = 'remove runner from metadata'
+        desc = 'Remove runner from metadata'
         subparser = subparsers.add_parser('remove-runner',
                                           formatter_class=Formatter,
                                           parents=[parent],
                                           description=desc,
                                           help=desc)
         subparser.add_argument('name', help='name of runner to remove')
+        subparser.add_argument('--force', action='store_true',
+                               help='forcefully remove a running runner')
 
         # start runner
-        desc = 'start a runner from metadata'
+        desc = 'Start a runner from metadata'
         subparser = subparsers.add_parser('start',
                                           formatter_class=Formatter,
                                           parents=[parent],
@@ -77,8 +80,20 @@ class CLICommand:
 
         subparser.add_argument('name', help='name of the runner to start')
 
+        # stop runner
+        desc = 'Stop a runner from metadata.'
+        add = ("Runner isn't stopped immediately, but after completing spool"
+               "process.")
+        subparser = subparsers.add_parser('stop',
+                                          formatter_class=Formatter,
+                                          parents=[parent],
+                                          description=desc+'\n'+add,
+                                          help=desc)
+
+        subparser.add_argument('name', help='name of the runner to stop')
+
         # submit a row
-        desc = ("submit row(s) for run.")
+        desc = ("Submit row(s) for run.")
         add = ("Row ids can be int or python like"
                " slice, eg. '1:4' gives ids 1, 2, and 3")
         subparser = subparsers.add_parser('submit',
@@ -98,7 +113,7 @@ class CLICommand:
                            help='id of the row in the database')
 
         # cancel a submitted row
-        desc = ("cancel row(s) for run.")
+        desc = ("Cancel row(s) for run.")
         add = ("Row ids can be int or python like"
                " slice, eg. '1:4' gives ids 1, 2, and 3")
         subparser = subparsers.add_parser('cancel',
@@ -120,7 +135,7 @@ class CLICommand:
                            help='id of the row in the database')
 
         # check status of a row
-        desc = 'check running status of row(s)'
+        desc = 'Check running status of row(s)'
         add = ("Row ids can be int or python like"
                " slice, eg. '1:4' gives ids 1, 2, and 3")
         subparser = subparsers.add_parser('status',
@@ -132,7 +147,7 @@ class CLICommand:
                                help='id of the row in the database')
 
         # check graphical status of a row
-        desc = 'get graphical status of the workflow for a row'
+        desc = 'Get graphical status of the workflow for a row'
         subparser = subparsers.add_parser('graphical-status',
                                           formatter_class=Formatter,
                                           parents=[parent],
@@ -149,77 +164,82 @@ class CLICommand:
     @staticmethod
     def run(args):
         """run cli args"""
-        with connect(args.db) as fdb:
+        fdb = connect(args.db)
 
-            if args.action == 'list-runners':
-                runner_meta = fdb.metadata.get('runners', {})
-                count = 1
-                # header
-                print(' '*22 + 'Runner name' + ' '*25 + 'Status', '\n', '='*63)
-                for key, value in runner_meta.items():
-                    bool_ = ('running' if value.get('running', False)
-                             else 'not running')
-                    print('{:>2} {:>30} {:>30}'.format(count, key, bool_))
-                    count += 1
-            elif args.action == 'remove-runner':
-                raise NotImplementedError()
-            elif args.action == 'start':
-                name = args.name
-                func = runner_type2func[name.split(':')[0]]
-                runner = func.from_database(name, args.db)
-                runner.spool()
-            elif args.action == 'submit':
-                if args.cancelled:
-                    args.id = []
-                    for row in fdb.select(status=f'cancel:{args.name}'):
-                        args.id.append(row.id)
-                elif args.failed:
-                    args.id = []
-                    for row in fdb.select(status=f'failed:{args.name}'):
-                        args.id.append(row.id)
+        if args.action == 'list-runners':
+            runner_dict = get_runner_list(args.db)
+            count = 1
+            # header
+            print(' '*22 + 'Runner name' + ' '*25 + 'Status', '\n', '='*63)
+            for key, value in runner_dict.items():
+                bool_ = ('running' if value else 'not running')
+                print('{:>2} {:>30} {:>30}'.format(count, key, bool_))
+                count += 1
+        elif args.action == 'remove-runner':
+            remove_runner(args.name, args.db, args.force)
+        elif args.action == 'start':
+            name = args.name
+            func = runner_type2func[name.split(':')[0]]
+            runner = func.from_database(name, args.db)
+            runner.spool()
+        elif args.action == 'stop':
+            stop_runner(args.name, args.db)
+        elif args.action == 'submit':
+            if args.cancelled:
+                args.id = []
+                for row in fdb.select(status=f'cancel:{args.name}',
+                                      columns=['id'], include_data=False):
+                    args.id.append(row.id)
+            elif args.failed:
+                args.id = []
+                for row in fdb.select(status=f'failed:{args.name}',
+                                      columns=['id'], include_data=False):
+                    args.id.append(row.id)
 
-                if isinstance(args.id, list):
-                    for id_ in args.id:
-                        submit(id_, args.db, args.name)
-                elif isinstance(args.id, slice):
-                    for id_ in range(args.id.start or 1,
-                                     args.id.stop or fdb.count()+1,
-                                     args.id.step or 1):
-                        submit(id_, args.db, args.name)
-                else:
-                    submit(args.id, args.db, args.name)
-            elif args.action == 'cancel':
-                if args.submitted or args.running or args.all:
-                    args.id = []
-                if args.submitted or args.all:
-                    for row in fdb.select(status=f'submit:{args.name}'):
-                        args.id.append(row.id)
-                if args.running or args.all:
-                    for row in fdb.select(status=f'failed:{args.name}'):
-                        args.id.append(row.id)
-
-                if isinstance(args.id, list):
-                    for id_ in args.id:
-                        cancel(id_, args.db)
-                elif isinstance(args.id, slice):
-                    for id_ in range(args.id.start or 1,
-                                     args.id.stop or fdb.count()+1,
-                                     args.id.step or 1):
-                        cancel(id_, args.db)
-                else:
-                    cancel(args.id, args.db)
-            elif args.action == 'status':
-                if isinstance(args.id, int):
-                    args.id = slice(args.id, args.id+1)
-                # header
-                print(' '*2 + 'ID' + ' '*25 + 'Status', '\n', '='*34)
+            if isinstance(args.id, list):
+                for id_ in args.id:
+                    submit(id_, args.db, args.name)
+            elif isinstance(args.id, slice):
                 for id_ in range(args.id.start or 1,
                                  args.id.stop or fdb.count()+1,
                                  args.id.step or 1):
-                    print(f'{id_:>4} {get_status(id_, args.db):>30}')
-            elif args.action == 'graphical-status':
-                get_graphical_status(args.filename, args.id,
-                                     args.db, args.add_tasks)
+                    submit(id_, args.db, args.name)
+            else:
+                submit(args.id, args.db, args.name)
+        elif args.action == 'cancel':
+            if args.submitted or args.running or args.all:
+                args.id = []
+            if args.submitted or args.all:
+                for row in fdb.select(status=f'submit:{args.name}',
+                                      columns=['id'], include_data=False):
+                    args.id.append(row.id)
+            if args.running or args.all:
+                for row in fdb.select(status=f'running:{args.name}',
+                                      columns=['id'], include_data=False):
+                    args.id.append(row.id)
+
+            if isinstance(args.id, list):
+                for id_ in args.id:
+                    cancel(id_, args.db)
+            elif isinstance(args.id, slice):
+                for id_ in range(args.id.start or 1,
+                                 args.id.stop or fdb.count()+1,
+                                 args.id.step or 1):
+                    cancel(id_, args.db)
+            else:
+                cancel(args.id, args.db)
+        elif args.action == 'status':
+            if isinstance(args.id, int):
+                args.id = slice(args.id, args.id+1)
+            # header
+            print(' '*2 + 'ID' + ' '*25 + 'Status', '\n', '='*34)
+            for id_ in range(args.id.start or 1,
+                             args.id.stop or fdb.count()+1,
+                             args.id.step or 1):
+                print(f'{id_:>4} {get_status(id_, args.db):>30}')
+        elif args.action == 'graphical-status':
+            get_graphical_status(args.filename, args.id,
+                                 args.db, args.add_tasks)
 
 
 class Formatter(argparse.HelpFormatter):

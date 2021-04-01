@@ -74,12 +74,14 @@ to simplify the genration of this data.
       is the list of ``atoms`` rows.
       The 0th index is the ``atoms`` row of the run, and the rest are the 
       ``atoms`` rows of the parents, in the order defined in the `parents` list.
-    * The rest parameters are passed as a dictionary, as defined in the `tasks`
+    * The rest parameters are passed as \*\*kwargs, as defined in the `tasks`
     * The function should return an ``atoms`` object, to be added in-place at
       the row being run.
-    * The `key_value_pairs` stored in `ase.Atoms.info` of the returned 
+    * The `key_value_pairs`_ stored in `ase.Atoms.info` of the returned 
       ``atoms`` object, is updated in the database.
     * The ase.db.row.data is updated with the rest of `ase.Atoms.info`.
+
+.. _key_value_pairs: https://wiki.fysik.dtu.dk/ase/ase/db/db.html#add-additional-data
 
 .. _tasks_format:
 
@@ -96,15 +98,16 @@ to simplify the genration of this data.
 
     >>> runnerdata.append_tasks('python', 'get_energy.py')
 
-  This will be run as::
+  This will be called from python code as::
 
-    $ python get_energy.py
+    >>> from get_energy import main
+    >>> main(atoms_list, **parameters)
 
-  If ``Python`` task has parameters, then::
+  Here, if ``Python`` parameters are defined in the task as::
+ 
     >>> runnerdata.append_tasks('python', 'get_energy.py', {'param': 0})
 
-  This is run similar to earlier, but with parameter `param` set as 0 in
-  the main function.
+  then, the parameters dict will pass `param`\=0 as \*\*kwargs in the main function.
 
   If ``Python`` task is to be executed with different python command then::
 

@@ -70,6 +70,7 @@ class BaseRunner(ABC):
 
         logger.debug('Initialising')
         self.name = name
+        self.database = database
         self.fdb = db.connect(database)
         self.max_jobs = max_jobs
         self.cycle_time = cycle_time
@@ -110,7 +111,9 @@ class BaseRunner(ABC):
         dict_['files'] = self.files
         dict_['running'] = False
 
-        meta = self.fdb.metadata
+        # get present metadata
+        with db.connect(self.database) as fdb:
+            meta = fdb.metadata
 
         runners = meta.get('runners', {})
 
@@ -154,15 +157,23 @@ class BaseRunner(ABC):
 
     def _set_running(self):
         """notify database that runner is running"""
-        meta = self.fdb.metadata
+        # get present metadata
+        with db.connect(self.database) as fdb:
+            meta = fdb.metadata
         meta['runners'][self.name]['running'] = True
         self.fdb.metadata = meta
 
     def _unset_running(self):
         """notify database that runner is not running"""
-        meta = self.fdb.metadata
-        meta['runners'][self.name]['running'] = False
-        self.fdb.metadata = meta
+        # get present metadata
+        with db.connect(self.database) as fdb:
+            meta = fdb.metadata
+        if self.name in meta['runners']:
+            # in case runner removed forcefully
+            meta['runners'][self.name]['running'] = False
+            # remove _explicit_stop bool, if present
+            meta['runners'][self.name].pop('_explicit_stop', None)
+            self.fdb.metadata = meta
 
     def get_job_id(self, input_id):
         """
@@ -604,6 +615,18 @@ class BaseRunner(ABC):
                 logger.info('Submitting')
                 self._submit_run()
 
+                # check for metadata stop
+                # get present metadata
+                with db.connect(self.database) as fdb:
+                    meta = fdb.metadata
+                if self.name in meta['runners']:
+                    if meta['runners'][self.name].get('_explicit_stop', False):
+                        logger.info('Encountered stop in metadata.')
+                        break
+                else:
+                    logger.info('Runner removed from metadata with force.')
+                    break
+
                 if _endless:
                     # sleep before checking again
                     logger.info('Sleeping for {}s'.format(self.cycle_time))
@@ -615,4 +638,3 @@ class BaseRunner(ABC):
             pass
         finally:
             self._unset_running()
-
