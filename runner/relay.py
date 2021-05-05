@@ -156,17 +156,21 @@ class Relay():
                          for parent in parents]
             if self._database is None:
                 if len(parents) != 0 and isinstance(parents[0], Atoms):
-                    self.id_ = fdb.write(parents[0])
+                    self.id_ = fdb.write(parents[0], label=self.label)
                     self.runnerdata.parents = parent_id[1:]
                     self._parents.pop(0)
                 else:
-                    self.id_ = fdb.write(Atoms())
+                    self.id_ = fdb.write(Atoms(), label=self.label)
                     self.runnerdata.parents = parent_id
+                # now add to self
+                self._database = database
             elif len(parents) != 0 and isinstance(parents[0], Atoms):
-                fdb.update(self.id_, parents[0])
+                fdb.update(self.id_, parents[0], label=self.label)
                 self.runnerdata.parents = parent_id[1:]
                 self._parents.pop(0)
-        self._database = database
+            else:
+                # update label
+                fdb.update(self.id_, label=self.label)
 
         self.runnerdata.to_db(self.database, self.id_)
         self._updated = True
@@ -238,6 +242,9 @@ class Relay():
     def parents(self, parents):
         if not isinstance(parents, list):
             parents = [parents]
+        if not (len(parents) != 0 and isinstance(parents[0], Atoms)):
+            bool_ = [isinstance(parent, (int, Relay)) for parent in parents]
+            assert np.all(bool_), 'parent should be a relay or an int index'
         self._parents = parents
         self._updated = False
 
@@ -291,7 +298,16 @@ class Relay():
     @label.setter
     def label(self, label):
         assert isinstance(label, str)
+        for i in [int, float]:
+            try:
+                _ = i(label)
+                raise RuntimeError(f'Label {label} is put in as string'
+                                   f' but can be interpreted as {i.__name__}!'
+                                   f' Not accepted by ASE database')
+            except ValueError:
+                pass
         self._label = label
+        self._updated = False
 
     def get_row(self, cycle_time=10, wait=True):
         """
