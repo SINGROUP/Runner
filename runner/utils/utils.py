@@ -101,7 +101,7 @@ def submit(input_id, database, runner_name):
     """
     input_id = int(input_id)
     fdb = get_db_connect(database)
-    fdb.update(input_id, status=f'submit:{runner_name}')
+    fdb.update(input_id, status='submit', runner=runner_name)
 
 
 def cancel(input_id, database):
@@ -115,9 +115,7 @@ def cancel(input_id, database):
     fdb = get_db_connect(database)
     row = fdb.get(input_id)
     if 'status' in row:
-        status = row.status.split(':')
-        status[0] = 'cancel'
-        fdb.update(input_id, status=':'.join(status))
+        fdb.update(input_id, status='cancel')
 
 
 def get_graphical_status(filename, input_ids, database, add_tasks=False):
@@ -197,7 +195,7 @@ def get_graphical_status(filename, input_ids, database, add_tasks=False):
             # add runner data graph
             # get unique node name
             node_name = f'{id_}-runnerdata'
-            color = status_colors[status.split(':')[0]]
+            color = status_colors[status]
             dot.node(node_name, label=f'{name}\n{status}',
                      shape='box',
                      style='filled',

@@ -28,40 +28,44 @@ def test_successful_run():
     """test run and parent run"""
     with db.connect('database.db') as fdb:
         data = {'runner': copy(runner)}
-        id_ = fdb.write(Atoms(), data=data, status='submit:terminal:test')
+        id_ = fdb.write(Atoms(), data=data, status='submit',
+                        runner='terminal:test')
         data['runner']['parents'] = [id_]
-        id_1 = fdb.write(Atoms(), data=data, status='submit:terminal:test')
+        id_1 = fdb.write(Atoms(), data=data, status='submit',
+                         runner='terminal:test')
         # waiting on next pass
         data = {'runner': copy(runner)}
         data['runner']['tasks'][0][1] = 'sleep 7'
-        id_2 = fdb.write(Atoms(), data=data, status='submit:terminal:test')
+        id_2 = fdb.write(Atoms(), data=data, status='submit',
+                         runner='terminal:test')
         # test max jobs and keep run
         data['runner']['tasks'][0][1] = 'sleep 1'
         data['runner']['keep_run'] = True
-        id_3 = fdb.write(Atoms(), data=data, status='submit:terminal:test')
+        id_3 = fdb.write(Atoms(), data=data, status='submit',
+                         runner='terminal:test')
 
     run = TerminalRunner('test', max_jobs=2)
     run.spool(_endless=False)
     fdb = db.connect('database.db')
-    assert fdb.get(id_).status == 'running:terminal:test'
-    assert fdb.get(id_1).status == 'submit:terminal:test'
-    assert fdb.get(id_2).status == 'running:terminal:test'
-    assert fdb.get(id_3).status == 'submit:terminal:test'
+    assert fdb.get(id_).status == 'running'
+    assert fdb.get(id_1).status == 'submit'
+    assert fdb.get(id_2).status == 'running'
+    assert fdb.get(id_3).status == 'submit'
     time.sleep(5)
     run.spool(_endless=False)
-    assert fdb.get(id_).status == 'done:terminal:test'
-    assert fdb.get(id_1).status == 'running:terminal:test'
-    assert fdb.get(id_2).status == 'running:terminal:test'
-    assert fdb.get(id_3).status == 'submit:terminal:test'
+    assert fdb.get(id_).status == 'done'
+    assert fdb.get(id_1).status == 'running'
+    assert fdb.get(id_2).status == 'running'
+    assert fdb.get(id_3).status == 'submit'
     time.sleep(5)
     run.spool(_endless=False)
-    assert fdb.get(id_).status == 'done:terminal:test'
-    assert fdb.get(id_1).status == 'done:terminal:test'
-    assert fdb.get(id_2).status == 'done:terminal:test'
-    assert fdb.get(id_3).status == 'running:terminal:test'
+    assert fdb.get(id_).status == 'done'
+    assert fdb.get(id_1).status == 'done'
+    assert fdb.get(id_2).status == 'done'
+    assert fdb.get(id_3).status == 'running'
     time.sleep(5)
     run.spool(_endless=False)
-    assert fdb.get(id_3).status == 'done:terminal:test'
+    assert fdb.get(id_3).status == 'done'
 
     assert not str(id_) in os.listdir(), 'no cleanup after done'
     assert not str(id_1) in os.listdir(), 'no cleanup after done'
@@ -78,22 +82,22 @@ def test_failed_run():
         data['runner']['tasks'].append(['shell', 'rm job.id'])
         id_[0] = fdb.write(Atoms(),
                            data=data,
-                           status='submit:terminal:test')
+                           status='submit', runner='terminal:test')
         # unpickling fail
         data['runner']['tasks'][4][1] = 'cp run.sh atoms.pkl'
         id_[1] = fdb.write(Atoms(),
                            data=data,
-                           status='submit:terminal:test')
+                           status='submit', runner='terminal:test')
         # bad runner data
         data = {'runner': copy(runner)}
         data['runner']['tasks'][1][1] = 'energy1.py'
         id_[2] = fdb.write(Atoms(),
                            data=data,
-                           status='submit:terminal:test')
+                           status='submit', runner='terminal:test')
         data['runner']['tasks'] = []
         id_[3] = fdb.write(Atoms(),
                            data=data,
-                           status='submit:terminal:test')
+                           status='submit', runner='terminal:test')
 
     run = TerminalRunner('test')
     run.spool(_endless=False)
@@ -101,13 +105,13 @@ def test_failed_run():
     for i in id_:
         if i in [id_[x] for x in [2, 3]]:
             # bad input fails instantly
-            assert fdb.get(i).status == 'failed:terminal:test', i
+            assert fdb.get(i).status == 'failed', i
         else:
-            assert fdb.get(i).status == 'running:terminal:test', i
+            assert fdb.get(i).status == 'running', i
     time.sleep(5)
     run.spool(_endless=False)
     for i in id_:
-        assert fdb.get(i).status == 'failed:terminal:test', i
+        assert fdb.get(i).status == 'failed', i
         if i == id_[0]:
             assert str(i) in os.listdir(), 'failed run folder cleaned'
             assert fdb.get(i).data['runner']['fail_count'] == 1,\

@@ -154,4 +154,4 @@ class TerminalRunner(BaseRunner):
         elif status == 'failed':
             log_msg += '{}\n Job failed'.format(datetime.now())
 
-        return '{}:{}'.format(status, self.name), log_msg
+        return status, log_msg

@@ -205,4 +205,4 @@ class SlurmRunner(BaseRunner):
             log_msg += '{}\n Job finished.\nWall time={}'.format(end_time,
                                                                  cpu_time)
 
-        return '{}:{}'.format(status, self.name), log_msg
+        return status, log_msg

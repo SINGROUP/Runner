@@ -143,9 +143,9 @@ class Relay():
             with db.connect(database) as fdb:
                 status = fdb.get(self.id_).get('status', '')
 
-            if (status.startswith('submit')
-                    or status.startswith('running')
-                    or status.startswith('cancel')):
+            if (status == 'submit'
+                    or status == 'running'
+                    or status == 'cancel'):
                 raise RuntimeError(f'cannot commit {self.__str__()}. It is '
                                    f'either submitted, running, or being'
                                    f' cancelled.')
@@ -216,12 +216,12 @@ class Relay():
         with db.connect(self.database) as fdb:
             status = fdb.get(self.id_).get('status', '')
 
-        if status.startswith('submit') or status.startswith('running'):
+        if status == 'submit' or status == 'running':
             return True
-        if status.startswith('cancel'):
+        if status == 'cancel':
             return False
-        if (status == '' or status.startswith('failed')
-                or (status.startswith('done')
+        if (status == '' or status == 'failed'
+                or (status == 'done'
                     and (force or parent_submitted))):
             submit(self.id_, self.database, self.runnername)
             return True
@@ -315,9 +315,9 @@ class Relay():
 
             status = row.get('status', 'done')
 
-            if status.startswith('done') or not wait:
+            if status == 'done' or not wait:
                 break
-            if status.startswith('failed'):
+            if status == 'failed':
                 raise RuntimeError(f'Run {self.id_} failed')
 
             time.sleep(cycle_time)
