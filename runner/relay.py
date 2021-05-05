@@ -171,6 +171,7 @@ class Relay():
             else:
                 # update label
                 fdb.update(self.id_, label=self.label)
+                self.runnerdata.parents = parent_id
 
         self.runnerdata.to_db(self.database, self.id_)
         self._updated = True
