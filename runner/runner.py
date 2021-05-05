@@ -86,7 +86,7 @@ class BaseRunner(ABC):
             runner['tasks'] = tasks
         if files is not None:
             runner['files'] = files
-        runner_data = RunnerData(runner)
+        runner_data = RunnerData.from_data_dict(runner)
         (scheduler_options, name, parents, tasks,
          files) = runner_data.get_runner_data(_skip_empty_task_test=True)
 
@@ -382,7 +382,8 @@ class BaseRunner(ABC):
                 break
             # get relevant data form atoms
             logger.debug('get runner data')
-            runnerdata = RunnerData(row.data.get('runner', None))
+            runnerdata = RunnerData.from_data_dict(row.data.get('runner',
+                                                                None))
             try:
                 (scheduler_options, name, parents, tasks,
                  files) = runnerdata.get_runner_data()

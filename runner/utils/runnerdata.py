@@ -5,7 +5,7 @@ from copy import copy
 
 import ase.db as db
 
-from runner.utils import json_keys2int
+from runner.utils.utils import json_keys2int, get_db_connect
 
 
 class RunnerData():
@@ -57,22 +57,19 @@ class RunnerData():
         >>> # and so on
 
     Args:
-        data (dict): runner data in atoms data
+        name (str): name of RunnerData
 
     Attributes:
         data: dictionary of the runner data
     """
 
-    def __init__(self, data=None):
-        data_temp = {'scheduler_options': {},
-                     'name': 'untitled_run',
+    def __init__(self, name='untitled_run'):
+        self.data = {'scheduler_options': {},
+                     'name': name,
                      'tasks': [],
                      'files': {},
                      'parents': [],
                      'keep_run': False}
-        if data:
-            data_temp.update(data)
-        self.data = data_temp
 
     def __repr__(self):
         return repr(self.data)
@@ -279,11 +276,11 @@ class RunnerData():
             ids = [ids]
         # test if data is appropriate
         _ = self.get_runner_data()
+        fdb = get_db_connect(database)
         for id_ in ids:
-            with db.connect(database) as fdb:
-                data = fdb.get(id_).data
-                data['runner'] = self.data
-                fdb.update(id_, data=data)
+            data = fdb.get(id_).data
+            data['runner'] = self.data
+            fdb.update(id_, data=data)
 
     def to_json(self, filename):
         """Saves RunnerData to json
@@ -305,10 +302,10 @@ class RunnerData():
             :class:`~runner.utils.runnerdata.RunnerData`: class defining
             runner data
         """
-        with db.connect(database) as fdb:
-            data = fdb.get(id_).data['runner']
-            data.pop('log', None)
-            return cls(data)
+        fdb = get_db_connect(database)
+        data = fdb.get(id_).data['runner']
+        data.pop('log', None)
+        return cls.from_data_dict(data)
 
     @classmethod
     def from_json(cls, filename):
@@ -323,7 +320,24 @@ class RunnerData():
         """
         with open(filename) as fio:
             data = json.load(fio, object_hook=json_keys2int)
-        return cls(data)
+        return cls.from_data_dict(data)
+
+    @classmethod
+    def from_data_dict(cls, data):
+        """Construct RunnerData from data dictionary
+
+        Args:
+            data (dict): runnerdata dictionary
+
+        Returns:
+            :class:`~runner.utils.runnerdata.RunnerData`: class defining
+            runner data
+        """
+        runnerdata = cls()
+        if data:
+            runnerdata.data.update(data)
+
+        return runnerdata
 
 
 def _test_name(name, log_msg=''):
@@ -414,6 +428,7 @@ def _test_scheduler_options(scheduler_options, log_msg=''):
     if not isinstance(scheduler_options, dict):
         err = log_msg + 'Runner: scheduler_options should be a dict\n'
         raise RuntimeError(err)
+
 
 def _tasks2file(tasks):
     """converts tasks to run_scripts and files"""

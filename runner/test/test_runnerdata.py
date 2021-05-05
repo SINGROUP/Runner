@@ -17,7 +17,7 @@ def test_runnerdata():
                'scheduler_options': {'-N': 5},
                'keep_run': True}
 
-    run = RunnerData(success)
+    run = RunnerData.from_data_dict(success)
     (scheduler_options, name, parents, tasks,
      files) = run.get_runner_data()
     assert name == 'energy calculation'
@@ -35,7 +35,7 @@ def test_runnerdata():
                'scheduler_options': {'-N': 5},
                'keep_run': True}
 
-    run = RunnerData(success)
+    run = RunnerData.from_data_dict(success)
     (scheduler_options, name, parents, tasks,
      files) = run.get_runner_data(_skip_empty_task_test=True)
     assert name == 'energy calculation'
@@ -159,7 +159,7 @@ def test_runnerdata():
                 'keep_run': True}
 
     for fail_ in fail:
-        run = RunnerData(fail_)
+        run = RunnerData.from_data_dict(fail_)
         with pytest.raises(RuntimeError):
             _ = run.get_runner_data()
 
@@ -218,7 +218,7 @@ def test_to_from_data():
     with db.connect('database.db') as fdb:
         fdb.write(Atoms())
 
-    runner = RunnerData(success)
+    runner = RunnerData.from_data_dict(success)
     runner.to_db('database.db', 1)
     runner.to_json('database.json')
     runner = RunnerData.from_db('database.db', 1)
