@@ -118,6 +118,9 @@ class SlurmRunner(BaseRunner):
 
         run_script += '\n'
 
+        # make script escape if error
+        run_script += 'set -e\n'
+
         # add tasks
         run_script += '\n'.join(tasks)
 
