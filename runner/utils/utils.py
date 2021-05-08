@@ -118,7 +118,24 @@ def cancel(input_id, database):
         fdb.update(input_id, status='cancel')
 
 
-def get_graphical_status(filename, input_ids, database, add_tasks=False):
+def _get_info(input_id, database):
+    """returns parent list, used in get_graphical_status"""
+    parents = []
+    tasks = []
+    name = None
+    fdb = get_db_connect(database)
+    row = fdb.get(input_id)
+    formula = row.formula
+    status = row.get('status', 'No status')
+    if 'runner' in row.data:
+        parents = row.data['runner'].get('parents', [])
+        tasks = row.data['runner']['tasks']
+        name = row.data['runner']['name']
+    return formula, name, parents, status, tasks
+
+
+def get_graphical_status(filename, input_ids, database,
+                         add_tasks=False, _get_info=_get_info):
     """Returns dot graph of the status of all parents of
     input_ids
 
@@ -133,21 +150,6 @@ def get_graphical_status(filename, input_ids, database, add_tasks=False):
     except ModuleNotFoundError:
         raise ModuleNotFoundError('get_graphical_status needs graphviz, '
                                   'run: pip install graphviz')
-
-    def get_info(input_id, database):
-        """returns parent list"""
-        parents = []
-        tasks = []
-        name = None
-        fdb = get_db_connect(database)
-        row = fdb.get(input_id)
-        formula = row.formula
-        status = row.get('status', 'No status')
-        if 'runner' in row.data:
-            parents = row.data['runner'].get('parents', [])
-            tasks = row.data['runner']['tasks']
-            name = row.data['runner']['name']
-        return formula, name, parents, status, tasks
 
     def add_task_graph(name, tasks, dot):
         """adds task graph
@@ -186,7 +188,7 @@ def get_graphical_status(filename, input_ids, database, add_tasks=False):
             return
         seen_ids.append(id_)
 
-        formula, name, parents, status, tasks = get_info(id_, database)
+        formula, name, parents, status, tasks = _get_info(id_, database)
         dot.node(str(id_), label=f'{id_}: {formula}',
                  style='filled',
                  fillcolor='lightblue')

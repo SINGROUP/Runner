@@ -7,7 +7,7 @@ from copy import deepcopy
 import numpy as np
 from ase import Atoms
 from ase import db
-from runner.utils import submit
+from runner.utils import submit, cancel, get_graphical_status
 from runner.utils.runnerdata import RunnerData
 from runner.runners import runner_types
 
@@ -143,9 +143,7 @@ class Relay():
             with db.connect(database) as fdb:
                 status = fdb.get(self.id_).get('status', '')
 
-            if (status == 'submit'
-                    or status == 'running'
-                    or status == 'cancel'):
+            if status in ['submit', 'running', 'cancel']:
                 raise RuntimeError(f'cannot commit {self.__str__()}. It is '
                                    f'either submitted, running, or being'
                                    f' cancelled.')
@@ -221,16 +219,37 @@ class Relay():
         with db.connect(self.database) as fdb:
             status = fdb.get(self.id_).get('status', '')
 
-        if status == 'submit' or status == 'running':
+        if status in ['submit', 'running']:
             return True
         if status == 'cancel':
             return False
-        if (status == '' or status == 'failed'
-                or (status == 'done'
-                    and (force or parent_submitted))):
+        if ((status == 'done' and (force or parent_submitted))
+                or status in ['', 'failed']):
             submit(self.id_, self.database, self.runnername)
             return True
         return False
+
+    def cancel(self, cancel_all=False):
+        """
+        Cancel row job
+
+        Args:
+            all (bool): Cancel all runs in the parent relay too.
+        """
+        if self._database is None:
+            raise RuntimeError('Relay not commited')
+
+        with db.connect(self._database) as fdb:
+            status = fdb.get(self.id_).get('status', '')
+            if status in ['submit', 'running']:
+                cancel(self.id_, self._database)
+
+            if cancel_all:
+                spider = self._spider()
+                for value in spider.values():
+                    status = fdb.get(value.id_).get('status', '')
+                    if status in ['submit', 'running']:
+                        value.cancel()
 
     @property
     def parents(self):
@@ -430,6 +449,13 @@ class Relay():
         with open(filename) as fio:
             data = json.load(fio)
 
+        return cls._parse_dict(data)
+
+    @classmethod
+    def _parse_dict(cls, data):
+        """
+        Parses raw dict data saved in json or database
+        """
         # preparing parent_dict
         parent_dict_ = data.pop('parent_dict', {})
         # make relay objects
@@ -449,6 +475,50 @@ class Relay():
 
         relay = cls._from_dict(data, parent_dict)
         return relay
+
+    @classmethod
+    def _from_database(cls, index, fdb, parent_dict=None):
+        """
+        Helper function for from_database. Returns data per row
+        """
+        if parent_dict is None:
+            parent_dict = {}
+        row = fdb.get(index)
+
+        data = {}
+        data['id'] = index
+        data['updated'] = True
+        data['runnerdata'] = row.data.get('runner', {})
+        data['runnername'] = row.get('runner', None)
+        data['label'] = row.get('label', '')
+        data['parents'] = row.data.get('runner', {}).get('parents', [])
+        for parent in data['parents']:
+            _, parent_dict = cls._from_database(parent, fdb, parent_dict)
+            parent_dict[parent] = _
+
+        return data, parent_dict
+
+    @classmethod
+    def from_database(cls, index, database):
+        """
+        Get relay from database
+
+        Args:
+            index (int): id of row in database
+            database (str): ASE database
+
+        Returns:
+            Relay object: relay associated with id
+        """
+        with db.connect(database) as fdb:
+            data, parent_dict = cls._from_database(index, fdb)
+
+        data['database'] = database
+        for value in parent_dict.values():
+            value['database'] = database
+        data['parent_dict'] = parent_dict
+
+        return cls._parse_dict(data)
 
     def _spider(self, dict_=None, parent_call=None):
         """
@@ -483,3 +553,57 @@ class Relay():
         parent_call.discard(self.id_)
 
         return dict_
+
+    def get_relay_graph(self, filename, add_tasks=False):
+        """
+        Save the relay as a directional acyclic graph, with status
+
+        Args:
+            filename (str): png filename to save the graph
+            add_tasks (bool): adds tasks to the graph
+        """
+        get_graphical_status(filename, [self.id_], self,
+                             add_tasks=add_tasks, _get_info=_get_info)
+
+
+def _get_info(input_id, relay):
+    """returns parent list, used in get_graphical_status"""
+    if input_id != relay.id_:
+        if isinstance(input_id, Atoms):
+            return (input_id.get_chemical_formula(),
+                    None, [], 'No status', [])
+        if input_id in relay._spider():
+            relay = relay._spider().get(input_id, None)
+        else:
+            parents = []
+            tasks = []
+            name = None
+            if relay.database is None:
+                status = 'No status'
+                formula = input_id
+            else:
+                with db.connect(relay.database) as fdb:
+                    row = fdb.get(input_id)
+                formula = row.formula
+                status = row.get('status', 'No status')
+                if 'runner' in row.data:
+                    # no parents returned, since out of relay
+                    # parents = row.data['runner'].get('parents', [])
+                    tasks = row.data['runner']['tasks']
+                    name = row.data['runner']['name']
+            return formula, name, parents, status, tasks
+
+    parents = [parent.id_ if isinstance(parent, Relay) else parent for parent
+               in relay.parents]
+    tasks = relay.runnerdata.tasks
+    name = relay.runnerdata.name
+    formula = relay.__str__()
+    if relay.database is None:
+        status = 'No status'
+    else:
+        with db.connect(relay.database) as fdb:
+            row = fdb.get(relay.id_)
+            status = row.get('status', 'No status')
+            if status == 'done':
+                formula = row.formula
+    return formula, name, parents, status, tasks
