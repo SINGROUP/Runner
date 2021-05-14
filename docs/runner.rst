@@ -21,7 +21,9 @@ simulations (or other related functions) are to be performed.
 
 Multiple ``Runners`` can be attached to a database, running on their
 respective machines. The ``Runners`` distinguish their rows by the 
-:ref:`status <Status of run>` of the run.
+`runner` `key_value_pairs 
+<https://wiki.fysik.dtu.dk/ase/ase/db/db.html#add-additional-data>`_
+of the database row.
 
 The :class:`~runner.runner.BaseRunner` class defines basic functions for each
 kind of runner.
@@ -35,10 +37,6 @@ Status of run
 The ``Runner`` runs based on a `status` `key_value_pairs 
 <https://wiki.fysik.dtu.dk/ase/ase/db/db.html#add-additional-data>`_
 in the database.
-When denoting the status the runner type and name is also appended. For example,
-a run presently running on :class:`~runner.runners.terminal.TerminalRunner`
-named 'myRunner' will be denoted as `running:terminal:myRunner`. Similarily,
-for other statuses and :class:`~runner.runners.slurm.SlurmRunner`.
 The status is given as:
 
 .. list-table:: Status
@@ -46,15 +44,15 @@ The status is given as:
 
   * - Status
     - Description
-  * - 'submit:<runner_type>:<runner_name>'
+  * - 'submit'
     - Indicates the ``Runner`` to submit the run, using ``RunnerData``.
-  * - 'cancel:<runner_type>:<runner_name>'
+  * - 'cancel'
     - Indicates the ``Runner`` to cancel the run.
-  * - 'running:<runner_type>:<runner_name>'
+  * - 'running'
     - ``Runner`` indicates that the row function is running.
-  * - 'failed:<runner_type>:<runner_name>'
+  * - 'failed'
     - ``Runner`` indicates that the row function has failed.
-  * - 'done:<runner_type>:<runner_name>'
+  * - 'done'
     - ``Runner`` indicates that the row function has completed.
 
 

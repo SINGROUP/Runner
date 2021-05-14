@@ -571,6 +571,7 @@ class BaseRunner(ABC):
             data['runner']['log'] = _
             logger.debug('update {}'.format(id_))
             self.fdb.update(id_, status=status, data=data)
+            logger.info('Cancelled {}'.format(id_))
 
     def spool(self, _endless=True):
         '''

@@ -30,7 +30,10 @@ to be run from the respective machine::
    ...                                        'myDatabase.db')
    >>> runner_.spool()
 
-or can be run via :ref:`cli` tools.
+or can be run via :ref:`cli` tools::
+
+    $ runner start terminal:myRunner -db database.db
+    ...
 
 .. note::
   Terminal tasks are run as a child process of the ``TerminalRunner`` itself, 

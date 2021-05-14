@@ -198,7 +198,7 @@ def get_graphical_status(filename, input_ids, database,
             # get unique node name
             node_name = f'{id_}-runnerdata'
             color = status_colors[status]
-            dot.node(node_name, label=f'{name}\n{status}',
+            dot.node(node_name, label=f'{name}\nStatus: {status}',
                      shape='box',
                      style='filled',
                      fillcolor=color)

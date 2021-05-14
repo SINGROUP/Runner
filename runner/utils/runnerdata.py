@@ -3,8 +3,6 @@ import json
 import os
 from copy import copy
 
-import ase.db as db
-
 from runner.utils.utils import json_keys2int, get_db_connect
 
 
@@ -29,7 +27,7 @@ class RunnerData():
       ...                   }
       ...          'keep_run': False
       ...          'log': ''}
-      >>> runnerdata = RunnerData(data)
+      >>> runnerdata = RunnerData.from_data_dict(data)
 
       where:
 
@@ -44,7 +42,7 @@ class RunnerData():
       However, the :class:`RunnerData` can be used to generate the data
       stepwise, using the functions provided as::
 
-        >>> runnerdata = RunnerData()
+        >>> runnerdata = RunnerData('<calculation name>')
         >>> runnerdata.add_file('<filename>')
         >>> runnerdata.append_tasks('python',
         ...                         '<filename>',
@@ -219,7 +217,7 @@ class RunnerData():
         tasks
 
         .. note::
-            Failed run folders are not deleted regardless of keep_run value. 
+            Failed run folders are not deleted regardless of keep_run value.
             This aids in the debugging of the run."""
         return self.data['keep_run']
 

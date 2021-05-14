@@ -38,8 +38,7 @@ to simplify the genration of this data.
 
 :Template data: template is initialised as::
 
-    >>> runnerdata = runner.RunnerData()
-    >>> runnerdata.name = 'myEnergyRun'
+    >>> runnerdata = runner.RunnerData('myEnergyRun')
 
 :Scheduler options: are added as::
 

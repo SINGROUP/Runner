@@ -30,7 +30,10 @@ to be run from the respective machine::
    >>> runner_ = SlurmRunner.from_database('slurm:myRunner', 'myDatabase.db')
    >>> runner_.spool()
 
-or can be run via :ref:`cli` tools.
+or can be run via :ref:`cli` tools::
+
+    $ runner start slurm:myRunner -db database.db
+    ...
 
 .. _slurm_scheduler:
 
