@@ -612,7 +612,6 @@ class BaseRunner(ABC):
                     if 'fail_count' not in row.data['runner']:
                         row.data['runner']['fail_count'] = (self.multi_fail
                                                             + 1)
-                        update = True
                     if (row.data['runner']['fail_count']
                             <= self.multi_fail):
                         # submit in next cycle
