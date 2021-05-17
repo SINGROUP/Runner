@@ -24,8 +24,9 @@ class Relay():
             attached to the row.
         runnername (str): name of the runner that handles the row run.
 
-        NB: In the case of :class:`~ase.Atoms` object as parent, the object can
-            be the only one in the list.
+    .. note::
+        In the case of :class:`~ase.Atoms` object as parent, the object can
+        be the only one in the list.
     """
 
     def __init__(self, label, parents=None, runnerdata=None, runnername=None):
@@ -85,7 +86,7 @@ class Relay():
         in the parent relay
 
         Args:
-            item (str or int): id or label associated with
+            item (str or int): id or label associated with parent relay
         """
         spider = self._spider()
         ret_item = spider.get(item, None)
@@ -182,6 +183,11 @@ class Relay():
 
         Returns:
             bool: if relay needs a commit
+
+        .. note::
+            set_property methods should be used to update the relay. This
+            marks the relay needs commit. If the set_property methods aren't
+            used, then relay will not commit the changes.
         """
         bool_list = [not self._updated]
 
@@ -302,6 +308,8 @@ class Relay():
         """
         database associated with the relay
         """
+        if self._database is None:
+            raise RuntimeError('Rely not commited, no database exists.')
         return self._database
 
     @database.setter
@@ -560,10 +568,31 @@ class Relay():
 
         Args:
             filename (str): png filename to save the graph
-            add_tasks (bool): adds tasks to the graph
+            add_tasks (bool): adds task information to the graph
         """
         get_graphical_status(filename, [self.id_], self,
                              add_tasks=add_tasks, _get_info=_get_info)
+
+    def replace_runnerdata(self, runnerdata):
+        """
+        Replace `RunnerData` for the relay and all relays with same runner
+        name as the given `RunnerData`
+
+        Args:
+            runnerdata (:class:`~runner.RunnerData`): RunnerData to supplant.
+        """
+        runnername = runnerdata.name
+
+        # replace self
+        if self.runnerdata.name == runnername:
+            self.runnerdata = runnerdata
+
+        # replace parents
+        parent_relays = self._spider()
+
+        for key, parent_relay in parent_relays.items():
+            if parent_relay.runnerdata.name == runnername:
+                parent_relay.runnerdata = runnerdata
 
 
 def _get_info(input_id, relay):
