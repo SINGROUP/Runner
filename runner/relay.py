@@ -42,7 +42,7 @@ class Relay():
         # if database needs update when relay is edited
         self._updated = False
         self.parents = parents
-        self.runnerdata = deepcopy(runnerdata)
+        self.runnerdata = runnerdata
         self.runnername = runnername
         self.label = label
 
@@ -284,7 +284,7 @@ class Relay():
     @runnerdata.setter
     def runnerdata(self, runnerdata):
         assert isinstance(runnerdata, RunnerData)
-        self._runnerdata = runnerdata
+        self._runnerdata = deepcopy(runnerdata)
         self._updated = False
 
     @property
@@ -585,14 +585,14 @@ class Relay():
 
         # replace self
         if self.runnerdata.name == runnername:
-            self.runnerdata = deepcopy(runnerdata)
+            self.runnerdata = runnerdata
 
         # replace parents
         parent_relays = self._spider()
 
         for key, parent_relay in parent_relays.items():
             if parent_relay.runnerdata.name == runnername:
-                parent_relay.runnerdata = deepcopy(runnerdata)
+                parent_relay.runnerdata = runnerdata
 
 
 def _get_info(input_id, relay):
