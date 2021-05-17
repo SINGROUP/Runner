@@ -268,7 +268,7 @@ class Relay():
     def parents(self, parents):
         if not isinstance(parents, list):
             parents = [parents]
-        if not (len(parents) != 0 and isinstance(parents[0], Atoms)):
+        if len(parents) != 0 and not isinstance(parents[0], Atoms):
             bool_ = [isinstance(parent, (int, Relay)) for parent in parents]
             assert np.all(bool_), 'parent should be a relay or an int index'
         self._parents = parents
@@ -585,14 +585,14 @@ class Relay():
 
         # replace self
         if self.runnerdata.name == runnername:
-            self.runnerdata = runnerdata
+            self.runnerdata = deepcopy(runnerdata)
 
         # replace parents
         parent_relays = self._spider()
 
         for key, parent_relay in parent_relays.items():
             if parent_relay.runnerdata.name == runnername:
-                parent_relay.runnerdata = runnerdata
+                parent_relay.runnerdata = deepcopy(runnerdata)
 
 
 def _get_info(input_id, relay):

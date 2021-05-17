@@ -52,8 +52,8 @@ or can be run via :ref:`cli` tools::
     the runner without the concern of terminating the session on logout.
 
 
-#. Defining workflow
-====================
+#. Defining the workflow through relay
+======================================
 
 Setting up the RunnerData
 ^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -8,4 +8,5 @@ Docs
    db
    runner
    runnerdata
+   relay
    utils
