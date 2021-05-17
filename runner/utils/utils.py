@@ -219,7 +219,7 @@ def get_graphical_status(filename, input_ids, database,
         input_ids = [input_ids]
     status_colors = {'running': 'yellow',
                      'failed': 'red',
-                     'submit': 'lightgreen',
+                     'submit': 'grey',
                      'cancel': 'grey',
                      'done': 'green',
                      'No status': 'white'}

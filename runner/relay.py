@@ -255,7 +255,7 @@ class Relay():
                 for value in spider.values():
                     status = fdb.get(value.id_).get('status', '')
                     if status in ['submit', 'running']:
-                        value.cancel()
+                        value.cancel(cancel_all=cancel_all)
 
     @property
     def parents(self):
