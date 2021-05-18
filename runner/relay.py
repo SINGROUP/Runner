@@ -196,7 +196,7 @@ class Relay():
 
         return np.any(bool_list)
 
-    def start(self, force=False):
+    def start(self, force=False, force_all=False):
         """
         Submits the relay for run. Rows with submitted parents are also
         submitted.
@@ -205,7 +205,8 @@ class Relay():
             resubmitted.
 
         Args:
-            force (bool): resubmit runs with 'done' status too.
+            force (bool): resubmit row with 'done' status too.
+            force_all (bool): resubmit all parent rows with 'done' status too.
 
         Returns:
             bool: if a row is submitted
@@ -218,7 +219,8 @@ class Relay():
         parent_submitted = False
         for parent in self.parents:
             if isinstance(parent, Relay):
-                status = parent.start(force=force)
+                status = parent.start(force=force_all,
+                                      force_all=force_all)
                 parent_submitted = (parent_submitted
                                     or status)
 
