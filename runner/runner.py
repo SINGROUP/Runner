@@ -138,7 +138,7 @@ class BaseRunner(ABC):
         dict_.pop('running', False)
         dict_.pop('_explicit_stop', False)
         _ = RunnerData.from_data_dict(dict_['pre_runner_data'])
-        dict_.pre_runner_data = _
+        dict_['pre_runner_data'] = _
 
         return cls(name=name,
                    database=database,
@@ -275,10 +275,10 @@ class BaseRunner(ABC):
                             if isinstance(atoms, list):
                                 atoms = atoms[0]
                             assert isinstance(atoms, Atoms)
-                        except Exception:
+                        except Exception as e:
                             status = 'failed'
-                            log_msg += ('{}\n Unpickling failed\n'
-                                        ''.format(datetime.now()))
+                            log_msg += ('{}\n Unpickling failed: {}\n'
+                                        ''.format(datetime.now(), e))
             # run post-tasks
             if status == 'done':
                 logger.debug('status: done')
