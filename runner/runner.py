@@ -36,9 +36,9 @@ class BaseRunner(ABC):
     Args:
         database (str): ASE database to connect
         interpreter (str): the interpreter for the shell
-        scheduler_options (dict): scheduler_options local to the system
-        tasks (list): pre-tasks local to the system
-        files (dict): pre-tasks files local to the system
+        pre_runner_data (:class:`RunnerData`): pre-run runnerdata
+            Files, tasks, and scheduler_options can be added to be added
+            to all the runs handled by this runner.
         max_jobs (int): maximum number of jobs running at an instance
         cycle_time (int): time in seconds
         keep_run (bool): keep the folder in which the run was performed
@@ -51,9 +51,7 @@ class BaseRunner(ABC):
                  name,
                  database="database.db",
                  interpreter="#!/bin/bash",
-                 scheduler_options=None,
-                 tasks=None,
-                 files=None,
+                 pre_runner_data=None,
                  max_jobs=50,
                  cycle_time=30,
                  keep_run=False,
@@ -79,20 +77,10 @@ class BaseRunner(ABC):
         self.multi_fail = multi_fail
         self.interpreter = interpreter
 
-        runner = {}
-        if scheduler_options is not None:
-            runner['scheduler_options'] = scheduler_options
-        if tasks is not None:
-            runner['tasks'] = tasks
-        if files is not None:
-            runner['files'] = files
-        runner_data = RunnerData.from_data_dict(runner)
-        (scheduler_options, name, _, tasks,
-         files) = runner_data.get_runner_data(_skip_empty_task_test=True)
-
-        self.tasks = tasks
-        self.scheduler_options = scheduler_options
-        self.files = files
+        if pre_runner_data is None:
+            self.pre_runner_data = RunnerData()
+        else:
+            self.pre_runner_data = pre_runner_data
 
     def to_database(self, update=False):
         """attaches runner to database
@@ -106,9 +94,7 @@ class BaseRunner(ABC):
         dict_['run_folder'] = self.run_folder
         dict_['multi_fail'] = self.multi_fail
         dict_['interpreter'] = self.interpreter
-        dict_['tasks'] = self.tasks
-        dict_['scheduler_options'] = self.scheduler_options
-        dict_['files'] = self.files
+        dict_['pre_runner_data'] = self.pre_runner_data.data
         dict_['running'] = False
 
         # get present metadata
@@ -151,6 +137,8 @@ class BaseRunner(ABC):
             raise KeyError(f'{name} not in runners, try runner list')
         dict_.pop('running', False)
         dict_.pop('_explicit_stop', False)
+        _ = RunnerData.from_data_dict(dict_['pre_runner_data'])
+        dict_.pre_runner_data = _
 
         return cls(name=name,
                    database=database,
@@ -403,9 +391,12 @@ class BaseRunner(ABC):
                 continue
 
             # add local runner things
-            scheduler_options.update(self.scheduler_options)
-            files.update(self.files)
-            tasks = self.tasks + tasks  # prior execution of local tasks
+            runner_data = self.pre_runner_data
+            _ = runner_data.get_runner_data(_skip_empty_task_test=True)
+            (pscheduler_options, _, _, ptasks, pfiles) = _
+            scheduler_options.update(pscheduler_options)
+            files.update(pfiles)
+            tasks = ptasks + tasks  # prior execution of local tasks
 
             # get self and parents atoms object with everything
             logger.debug('getting atoms and parents')

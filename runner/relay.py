@@ -259,6 +259,21 @@ class Relay():
                     if status in ['submit', 'running']:
                         value.cancel(cancel_all=cancel_all)
 
+    def get_status(self):
+        """
+        Returns status of the present row
+
+        Returns:
+            str: status of present row
+        """
+        if self._database is None:
+            return 'Relay not commited'
+        with db.connect(self._database) as fdb:
+            status = fdb.get(self.id_).get('status', 'No status')
+        return status
+
+    status = property(get_status, doc=("Returns status of present relay row"))
+
     @property
     def parents(self):
         """

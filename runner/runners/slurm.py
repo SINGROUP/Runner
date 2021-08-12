@@ -47,9 +47,9 @@ class SlurmRunner(BaseRunner):
             to the database.
         database (str): ASE database to connect
         interpreter (str): the interpreter for the shell
-        scheduler_options (dict): scheduler_options local to the system
-        tasks (list): pre-tasks local to the system
-        files (dict): pre-tasks files local to the system
+        pre_runner_data (:class:`RunnerData`): pre-run runnerdata
+            Files, tasks, and scheduler_options can be added to all the runs
+            handled by this runner.
         max_jobs (int): maximum number of jobs running at an instance
         cycle_time (int): time in seconds
         keep_run (bool): keep the folder in which the run was performed
@@ -62,9 +62,7 @@ class SlurmRunner(BaseRunner):
                  name,
                  database="database.db",
                  interpreter="#!/bin/bash",
-                 scheduler_options=None,
-                 tasks=None,
-                 files=None,
+                 pre_runner_data=None,
                  max_jobs=50,
                  cycle_time=30,
                  keep_run=False,
@@ -76,9 +74,7 @@ class SlurmRunner(BaseRunner):
         super().__init__(name=name,
                          database=database,
                          interpreter=interpreter,
-                         scheduler_options=scheduler_options,
-                         tasks=tasks,
-                         files=files,
+                         pre_runner_data=pre_runner_data,
                          max_jobs=max_jobs,
                          cycle_time=cycle_time,
                          keep_run=keep_run,
