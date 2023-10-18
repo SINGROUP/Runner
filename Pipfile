@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 runner = {editable = true, path = "."}
+graphviz = "*"
 
 [dev-packages]
 sphinx = "*"
