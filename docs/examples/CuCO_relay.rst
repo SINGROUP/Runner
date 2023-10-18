@@ -1,17 +1,16 @@
-=================
-Cu-CO bond length
-=================
+============================
+Cu-CO bond length with Relay
+============================
 
-In Non-contact AFM, the tip-CO interaction is simulated by two Cu
-atoms followed by CO (Cu-Cu-C-O). We will take a simple example
-where we first relax the Cu-Cu atoms and the CO molecule. Then we will 
-bring them together at certain distances, to finally compute the lowest
-energy distance.
+We will take the same example where we first relax the Cu-Cu atoms and 
+the CO molecule. Then we will bring them together at certain distances, 
+to finally compute the lowest energy distance. But here, the workflow and
+RunnerData management will be done by Relay.
 
 #. Setting up the Runner
 ========================
 
-First step is to setup and start a runner. This will look for jobs to be 
+Same as before, the first step is to setup and start a runner. This will look for jobs to be 
 submitted, and will submit them. This is also responsible for checking the
 status of the run, and update the status as failed or done, accordingly.
 
@@ -51,13 +50,14 @@ or can be run via :ref:`cli` tools::
     can be used to run a shell session in the background. This can safely run
     the runner without the concern of terminating the session on logout.
 
-#. Defining the workflow
-========================
+
+#. Defining the workflow through relay
+======================================
 
 Setting up the RunnerData
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A ``RunnerData`` to define the relaxation run can be defined. The python run file
+Same as before, a ``RunnerData`` to define the relaxation run can be defined. The python run file
 follows the :ref:`file format <file_format>`. Following the format, we can make the
 BFGS function file as:
 
@@ -100,21 +100,19 @@ These can be included with the ``RunnerData`` as::
     >>> min_rundata.append_tasks('python', 'min_energy.py')
 
 
+Setting up the Relay
+^^^^^^^^^^^^^^^^^^^^
 
-Setting up the database
-^^^^^^^^^^^^^^^^^^^^^^^
-
-Then, we need to add the Cu-Cu and CO molecules into the database with
-appropriate calculators and RunnerData. We'll use `ase.calculators.EMT 
+We start with the Cu-Cu and CO molecules with
+appropriate calculators, and prepare the workflow as a relay.
+We'll use `ase.calculators.EMT 
 <https://wiki.fysik.dtu.dk/ase/ase/calculators/emt.html#module-ase.calculators.emt>`_ 
 for simple demonstration::
 
     >>> from ase import Atoms
     >>> from ase.calculators.emt import EMT
     >>> from ase.constraints import FixAtoms
-    >>> import ase.db as db
 
-    >>> # setting up the database
     >>> # CO
     >>> co = Atoms('CO', positions=[[0, 0, 0], [0, 0, 1]])
     >>> # fixing C atom
@@ -132,69 +130,33 @@ for simple demonstration::
     >>> calc = EMT()
     >>> cu.set_calculator(calc)
 
-    >>> # now these can be added to the database
-    >>> with db.connect('database.db') as fdb:
-    ...     id_co = fdb.write(co)
-    ...     id_cu = fdb.write(cu)
-    >>> # with their RunnerData
-    >>> bfgs_rundata.to_db('database.db', [id_co, id_cu])
-    >>> # adding default column for database GUI
-    >>> with db.connect('database.db') as fdb:
-    ...     fdb.metadata = {'default_columns': ['id', 'user', 'formula',
-    ...                                         'status', 'd', 'energy']}
+    >>> # now these can be made into relay
+    >>> from runner import Relay
+    >>> co_relay = Relay('co', co, bfgs_rundata, 'terminal:myRunner')
+    >>> cu_relay = Relay('cu', cu, bfgs_rundata, 'terminal:myRunner')
 
-#. Bond distance
-=================
+Next, we setup the bond distance calculations and minimum energy as Relays.
+The Relay architecture simplyfies addition of the parent workflows and submission
+of the relay::
 
-To calculate the bond distance, we will utilise the parameters feature in the
-:ref:`tasks <tasks_format>`. Further, by defining :ref:`parents 
-<parents_format>` of the row, we can inherit atoms object from the parent row,
-and the ``Runner`` will wait for the parent runs to finish before submitting
-this run.
-
-Setting up the same database
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Atoms row for each new distance calculation has to be defined first. However,
-these atoms row are filled with empty ``Atoms`` object::
-
-    >>> # make database rows for new systems
     >>> data_list = [x for x in range(1, 10)]
-    >>> ids = [None for _ in data_list]
-    >>> for i, dist in enumerate(data_list):
-    >>>     with db.connect('database.db') as fdb:
-    >>>         ids[i] = fdb.write(Atoms())
-
-    >>> # send RunnerData to the database with updated parameters
-    >>> int_rundata.parents = [id_co, id_cu]
+    >>> relays = []
     >>> for i, dist in enumerate(data_list):
     >>>     int_rundata.tasks[0][2]['d'] = dist
-    >>>     int_rundata.to_db('database.db', ids[i])
+    >>>     relays.append(Relay(f'd:{dist}', [co_relay, cu_relay],
+    ...                         int_rundata, 'terminal:myRunner'))
 
-#. Minimum energy configuration
-===============================
+    >>> min_data = Relay('final', relays, min_rundata, 'terminal:myRunner')
 
-Next, the Atoms row to store the minimum engergy configuration can
- be added to the database as::
+#. Submitting the relay
+=======================
 
-    >>> # make database rows for new system
-    >>> with db.connect('database.db') as fdb:
-    >>>     id_min = fdb.write(Atoms())
-    >>> # send RunnerData to the database with updated parameters
-    >>> min_rundata.parents = ids
-    >>> min_rundata.to_db('database.db', id_min)
+To mark the rows for submission for ``Runner``, only the relay is commited. This
+commits the entire relay graph, and adds the workflow to the database. 
+Then the entire relay workflow can be submitted for run::
 
-
-#. Submitting the rows
-======================
-
-To mark the rows for submission by ``Runner``, the :ref:`status <Status of run>` of
-the row is changed::
-
-    >>> from runner.utils import submit
-    >>> for i in [id_co, id_cu] + ids + [id_min]:
-    ...     submit(i, 'database.db', 'terminal:myRunner')
-
-or can be run via :ref:`cli` tools.
+    >>> min_data.commit('database.db')
+    >>> min_data.start()
 
 When the rows are submited, the ``Runner`` starts managing all the runs
 accordingly.
@@ -203,15 +165,13 @@ accordingly.
 
     Snapshot of `ASE database browser GUI <https://wiki.fysik.dtu.dk/ase/ase/db/db.html#browse-database-with-your-web-browser>`_ after completing all runs
 
-#. Graphical visualisation of the workflow
-==========================================
+#. Graphical visualisation of the workflow via Relay
+====================================================
 
-We can visualise the graph of the workflow made to get the last row
+We can visualise the graph of the workflow made through the ``Relay``
 , while the ``Runner`` runs the rows::
 
-    >>> from runner.utils import get_graphical_status
-    >>> get_graphical_status('graph.png', id_min, 'database.db',
-    ...                      add_tasks=True)
+    >>> min_data.get_relay_graph('graph.png', add_tasks=True)
 
 or can be run via :ref:`cli` tools.
 

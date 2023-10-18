@@ -21,4 +21,5 @@ Examples
    :maxdepth: 1
 
    examples/CuCO
+   examples/CuCO_relay
 
