@@ -15,4 +15,4 @@ def use_tmp_workdir(tmp_path):
     with Cd(path, mkdir=True):
         yield tmp_path
     # We print the path so user can see where test failed, if it failed.
-    print(f'Testpath: {path}')
+    print(f"Testpath: {path}")

@@ -6,5 +6,5 @@ from runner import utils
 from runner.utils.runnerdata import RunnerData
 
 
-__all__ = ['SlurmRunner', 'TerminalRunner', 'RunnerData', 'utils', 'Relay']
-__version__ = '0.1'
+__all__ = ["SlurmRunner", "TerminalRunner", "RunnerData", "utils", "Relay"]
+__version__ = "0.1"

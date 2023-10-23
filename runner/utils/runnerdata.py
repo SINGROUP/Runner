@@ -6,7 +6,7 @@ from copy import copy
 from runner.utils.utils import json_keys2int, get_db_connect
 
 
-class RunnerData():
+class RunnerData:
     """Class to handle runner data using helper function
 
     Example:
@@ -61,13 +61,15 @@ class RunnerData():
         data: dictionary of the runner data
     """
 
-    def __init__(self, name='untitled_run'):
-        self.data = {'scheduler_options': {},
-                     'name': name,
-                     'tasks': [],
-                     'files': {},
-                     'parents': [],
-                     'keep_run': False}
+    def __init__(self, name="untitled_run"):
+        self.data = {
+            "scheduler_options": {},
+            "name": name,
+            "tasks": [],
+            "files": {},
+            "parents": [],
+            "keep_run": False,
+        }
 
     def __repr__(self):
         return repr(self.data)
@@ -75,22 +77,22 @@ class RunnerData():
     @property
     def name(self):
         """Name of the RunnerData"""
-        return self.data['name']
+        return self.data["name"]
 
     @name.setter
     def name(self, name):
         _test_name(name)
-        self.data['name'] = name
+        self.data["name"] = name
 
     @property
     def tasks(self):
         """tasks in RunnerData"""
-        return self.data['tasks']
+        return self.data["tasks"]
 
     @tasks.setter
     def tasks(self, tasks):
         _test_tasks(tasks, self.files, _skip_empty_task_test=True)
-        self.data['tasks'] = tasks
+        self.data["tasks"] = tasks
 
     def append_tasks(self, task_type, *args):
         """Appends task to tasks
@@ -119,29 +121,29 @@ class RunnerData():
                 for python task_type, args is python filename (str),
                 parameters (dict), and python execute command (str)
         """
-        if task_type == 'shell':
-            task = ['shell', *args]
-        elif task_type == 'python':
-            task = ['python', *args]
+        if task_type == "shell":
+            task = ["shell", *args]
+        elif task_type == "python":
+            task = ["python", *args]
             if len(task) == 2:
                 task.append({})
             if len(task) == 3:
-                task.append('python')
+                task.append("python")
         else:
-            raise RuntimeError('task type shell or python supported')
+            raise RuntimeError("task type shell or python supported")
 
         _test_tasks([task], self.files)
-        self.data['tasks'].append(task)
+        self.data["tasks"].append(task)
 
     @property
     def files(self):
         """Files in RunnerData"""
-        return self.data['files']
+        return self.data["files"]
 
     @files.setter
     def files(self, files):
         _test_files(files)
-        self.data['files'] = files
+        self.data["files"] = files
 
     def add_file(self, filename, add_as=None):
         """Add file to runner data
@@ -152,14 +154,14 @@ class RunnerData():
         if add_as is None:
             add_as = filename
         try:
-            with open(filename, 'r') as fio:
+            with open(filename, "r") as fio:
                 basename = os.path.basename(add_as)
-                self.data['files'][basename] = fio.read()
+                self.data["files"][basename] = fio.read()
         except UnicodeDecodeError:
             # file is binary
-            with open(filename, 'rb') as fio:
+            with open(filename, "rb") as fio:
                 basename = os.path.basename(add_as)
-                self.data['files'][basename] = fio.read()
+                self.data["files"][basename] = fio.read()
 
     def add_files(self, filenames, add_as=None):
         """Adds files to runner data
@@ -174,8 +176,9 @@ class RunnerData():
             if not isinstance(add_as, (tuple, list)):
                 add_as = [add_as]
             if len(add_as) != len(filenames):
-                raise RuntimeError('Length of filenames and add_as should'
-                                   ' be the same')
+                raise RuntimeError(
+                    "Length of filenames and add_as should" " be the same"
+                )
         else:
             add_as = filenames
 
@@ -185,12 +188,12 @@ class RunnerData():
     @property
     def scheduler_options(self):
         """Scheduler_options in RunnerData"""
-        return self.data['scheduler_options']
+        return self.data["scheduler_options"]
 
     @scheduler_options.setter
     def scheduler_options(self, scheduler_options):
         _test_scheduler_options(scheduler_options)
-        self.data['scheduler_options'] = scheduler_options
+        self.data["scheduler_options"] = scheduler_options
 
     def add_scheduler_options(self, scheduler_options):
         """Adds scheduler_options to runner data
@@ -198,18 +201,18 @@ class RunnerData():
         Args:
             scheduler_options (dict): dictionary of options"""
         _test_scheduler_options(scheduler_options)
-        self.data['scheduler_options'].update(scheduler_options)
+        self.data["scheduler_options"].update(scheduler_options)
 
     @property
     def parents(self):
         """Parent simulations of the row"""
-        return self.data['parents']
+        return self.data["parents"]
 
     @parents.setter
     def parents(self, parents):
         """set parents to runner data"""
         _test_parents(parents)
-        self.data['parents'] = parents
+        self.data["parents"] = parents
 
     @property
     def keep_run(self):
@@ -219,12 +222,12 @@ class RunnerData():
         .. note::
             Failed run folders are not deleted regardless of keep_run value.
             This aids in the debugging of the run."""
-        return self.data['keep_run']
+        return self.data["keep_run"]
 
     @keep_run.setter
     def keep_run(self, keep_run):
         _test_keep_run(keep_run)
-        self.data['keep_run'] = keep_run
+        self.data["keep_run"] = keep_run
 
     def get_runner_data(self, _skip_empty_task_test=False):
         """
@@ -239,21 +242,21 @@ class RunnerData():
         """
         data = self.data
         scheduler_options = {}
-        name = ''
+        name = ""
         parents = []
         tasks = []
         files = {}
 
         if data is None:
-            raise RuntimeError('No runner data')
+            raise RuntimeError("No runner data")
 
-        scheduler_options = data.get('scheduler_options', {})
-        name = str(data.get('name', 'untitled_run'))
-        parents = data.get('parents', [])
-        files = data.get('files', {})
-        tasks = data.get('tasks', [])
-        keep_run = data.get('keep_run', False)
-        log_msg = data.get('log', '')
+        scheduler_options = data.get("scheduler_options", {})
+        name = str(data.get("name", "untitled_run"))
+        parents = data.get("parents", [])
+        files = data.get("files", {})
+        tasks = data.get("tasks", [])
+        keep_run = data.get("keep_run", False)
+        log_msg = data.get("log", "")
 
         _test_scheduler_options(scheduler_options, log_msg)
         _test_name(name, log_msg)
@@ -277,7 +280,7 @@ class RunnerData():
         fdb = get_db_connect(database)
         for id_ in ids:
             data = fdb.get(id_).data
-            data['runner'] = self.data
+            data["runner"] = self.data
             fdb.update(id_, data=data)
 
     def to_json(self, filename):
@@ -285,7 +288,7 @@ class RunnerData():
 
         Args:
             filename (str): name of `json` file"""
-        with open(filename, 'w') as fio:
+        with open(filename, "w") as fio:
             json.dump(self.data, fio)
 
     @classmethod
@@ -301,8 +304,8 @@ class RunnerData():
             runner data
         """
         fdb = get_db_connect(database)
-        data = fdb.get(id_).data['runner']
-        data.pop('log', None)
+        data = fdb.get(id_).data["runner"]
+        data.pop("log", None)
         return cls.from_data_dict(data)
 
     @classmethod
@@ -338,49 +341,46 @@ class RunnerData():
         return runnerdata
 
 
-def _test_name(name, log_msg=''):
+def _test_name(name, log_msg=""):
     if not isinstance(name, str):
-        err = log_msg + 'Runner: name should be str\n'
+        err = log_msg + "Runner: name should be str\n"
         raise RuntimeError(err)
 
 
-def _test_keep_run(keep_run, log_msg=''):
+def _test_keep_run(keep_run, log_msg=""):
     if not isinstance(keep_run, bool):
-        err = log_msg + 'Runner: keep_run should be bool\n'
+        err = log_msg + "Runner: keep_run should be bool\n"
         raise RuntimeError(err)
 
 
-def _test_parents(parents, log_msg=''):
+def _test_parents(parents, log_msg=""):
     if not isinstance(parents, (list, tuple)):
-        err = log_msg + 'Runner: Parents should be a list of int\n'
+        err = log_msg + "Runner: Parents should be a list of int\n"
         raise RuntimeError(err)
     for i in parents:
         if not isinstance(i, int):
-            err = (log_msg + 'Runner: parents should be a list of'
-                   'int\n')
+            err = log_msg + "Runner: parents should be a list of" "int\n"
             raise RuntimeError(err)
 
 
-def _test_files(files, log_msg=''):
+def _test_files(files, log_msg=""):
     if not isinstance(files, dict):
-        err = (log_msg + 'Runner: files should be a dictionary\n')
+        err = log_msg + "Runner: files should be a dictionary\n"
         raise RuntimeError(err)
     for filename, content in files.items():
         if not isinstance(filename, str):
-            err = (log_msg + 'Runner: filenames should be str\n')
+            err = log_msg + "Runner: filenames should be str\n"
             raise RuntimeError(err)
         if not isinstance(content, (str, bytes)):
-            err = (log_msg + 'Runner: file contents should be str'
-                   ' or bytes\n')
+            err = log_msg + "Runner: file contents should be str" " or bytes\n"
             raise RuntimeError(err)
 
 
-def _test_tasks(tasks, files=None, log_msg='',
-                _skip_empty_task_test=True):
+def _test_tasks(tasks, files=None, log_msg="", _skip_empty_task_test=True):
     if files is None:
         files = {}
     if not isinstance(tasks, (list, tuple)):
-        err = (log_msg + 'Runner: tasks should be a list\n')
+        err = log_msg + "Runner: tasks should be a list\n"
         raise RuntimeError(err)
 
     if len(tasks) == 0 and not _skip_empty_task_test:
@@ -388,43 +388,45 @@ def _test_tasks(tasks, files=None, log_msg='',
         raise RuntimeError(err)
     for task in tasks:
         if not isinstance(task, (tuple, list)):
-            err = (log_msg + 'Runner: each task should be a list\n')
+            err = log_msg + "Runner: each task should be a list\n"
             raise RuntimeError(err)
         if len(task) < 2:
-            err = (log_msg + 'Runner: each task sould have a name'
-                   ' and command or filename\n')
+            err = (
+                log_msg + "Runner: each task sould have a name"
+                " and command or filename\n"
+            )
             raise RuntimeError(err)
         if not isinstance(task[1], str):
-            err = (log_msg + 'Runner: shell command or python filename'
-                   ' should be str\n')
+            err = (
+                log_msg + "Runner: shell command or python filename" " should be str\n"
+            )
             raise RuntimeError(err)
-        if task[0] == 'python':
+        if task[0] == "python":
             # testing filename in files
             filename = copy(task[1])
-            if not filename.endswith('.py'):
-                filename += '.py'
+            if not filename.endswith(".py"):
+                filename += ".py"
             if filename not in files:
-                err = (log_msg + 'Runner: python filename {} should'
-                       ' be in files\n'.format(filename))
+                err = (
+                    log_msg + "Runner: python filename {} should"
+                    " be in files\n".format(filename)
+                )
                 raise RuntimeError(err)
             if len(task) > 2:
                 if not isinstance(task[2], dict):
-                    err = (log_msg + 'Runner: python parameters '
-                           'should be dict\n')
+                    err = log_msg + "Runner: python parameters " "should be dict\n"
                     raise RuntimeError(err)
             if len(task) > 3:
                 if not isinstance(task[3], str):
-                    err = (log_msg + 'Runner: python command should'
-                           'be str\n')
+                    err = log_msg + "Runner: python command should" "be str\n"
                     raise RuntimeError(err)
-        elif task[0] != 'shell':
-            raise RuntimeError("Runner: task should either be 'shell'"
-                               " or 'python'\n")
+        elif task[0] != "shell":
+            raise RuntimeError("Runner: task should either be 'shell'" " or 'python'\n")
 
 
-def _test_scheduler_options(scheduler_options, log_msg=''):
+def _test_scheduler_options(scheduler_options, log_msg=""):
     if not isinstance(scheduler_options, dict):
-        err = log_msg + 'Runner: scheduler_options should be a dict\n'
+        err = log_msg + "Runner: scheduler_options should be a dict\n"
         raise RuntimeError(err)
 
 

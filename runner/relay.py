@@ -12,7 +12,7 @@ from runner.utils.runnerdata import RunnerData
 from runner.runners import runner_types
 
 
-class Relay():
+class Relay:
     """
     Relay :class:`~ase.db` rows into a workflow
 
@@ -47,37 +47,39 @@ class Relay():
         self.label = label
 
         # assigning arbitrary str id to reference before commiting
-        letters = np.array(list(chr(ord('a') + i) for i in range(26)))
+        letters = np.array(list(chr(ord("a") + i) for i in range(26)))
         used_ids = set()
         used_labels = set()
         for parent in self.parents:
             if isinstance(parent, Relay):
                 used_ids |= set(parent._spider().keys())
-                used_labels |= {value.label
-                                for value in parent._spider().values()}
-        used_labels -= set([''])
+                used_labels |= {value.label for value in parent._spider().values()}
+        used_labels -= set([""])
         if label in used_labels:
-            raise RuntimeError(f'{label} already taken')
+            raise RuntimeError(f"{label} already taken")
 
         while True:
-            self.id_ = ''.join(np.random.choice(letters, 5))
+            self.id_ = "".join(np.random.choice(letters, 5))
             if self.id_ not in used_ids:
                 break
 
     def __repr__(self):
-        label_str = (f", label='{self.label}'" if self.label != '' else "")
-        database_str = (f", database='{self._database}'"
-                        if self._database is not None else "")
-        repr_str = (f"{self.__class__.__name__}(id={self.id_}"
-                    f", parents=[{', '.join([str(x) for x in self.parents])}]"
-                    f"{database_str}"
-                    f", runnerdata='{self._runnerdata.name}'"
-                    f", runnername='{self._runnername}'"
-                    f"{label_str})")
+        label_str = f", label='{self.label}'" if self.label != "" else ""
+        database_str = (
+            f", database='{self._database}'" if self._database is not None else ""
+        )
+        repr_str = (
+            f"{self.__class__.__name__}(id={self.id_}"
+            f", parents=[{', '.join([str(x) for x in self.parents])}]"
+            f"{database_str}"
+            f", runnerdata='{self._runnerdata.name}'"
+            f", runnername='{self._runnername}'"
+            f"{label_str})"
+        )
         return repr_str
 
     def __str__(self):
-        label_str = (f", label='{self.label}'" if self.label != '' else "")
+        label_str = f", label='{self.label}'" if self.label != "" else ""
         return f"{self.__class__.__name__}(id={self.id_}{label_str})"
 
     def get_parent_relay(self, item):
@@ -91,9 +93,10 @@ class Relay():
         spider = self._spider()
         ret_item = spider.get(item, None)
         if ret_item is None:
-            ret_item = {(value.label if value.label != ''
-                         else value.id_): value
-                        for key, value in spider.items()}.get(item, None)
+            ret_item = {
+                (value.label if value.label != "" else value.id_): value
+                for key, value in spider.items()
+            }.get(item, None)
         return ret_item
 
     def list_parent_relay(self):
@@ -103,7 +106,7 @@ class Relay():
         spider = self._spider()
         list_relay = list(spider.keys())
         for value in spider.values():
-            if value.label != '':
+            if value.label != "":
                 list_relay.append(value.label)
         return list_relay
 
@@ -121,15 +124,19 @@ class Relay():
         """
         if database is None:
             if self._database is None:
-                raise RuntimeError(f'{self.__str__()} needs a'
-                                   f' database for commit. No previous'
-                                   f' database commits.')
+                raise RuntimeError(
+                    f"{self.__str__()} needs a"
+                    f" database for commit. No previous"
+                    f" database commits."
+                )
             database = self._database
         elif self._database is not None:
             if self._database != database:
-                raise RuntimeError(f'{self.__str__()} already commited with'
-                                   f' {self._database}, cannot commit with'
-                                   f' {database}')
+                raise RuntimeError(
+                    f"{self.__str__()} already commited with"
+                    f" {self._database}, cannot commit with"
+                    f" {database}"
+                )
 
         # recursively commit parents
         for parent in self.parents:
@@ -142,17 +149,21 @@ class Relay():
         if self._database is not None:
             # if commited, then check status
             with db.connect(database) as fdb:
-                status = fdb.get(self.id_).get('status', '')
+                status = fdb.get(self.id_).get("status", "")
 
-            if status in ['submit', 'running', 'cancel']:
-                raise RuntimeError(f'cannot commit {self.__str__()}. It is '
-                                   f'either submitted, running, or being'
-                                   f' cancelled.')
+            if status in ["submit", "running", "cancel"]:
+                raise RuntimeError(
+                    f"cannot commit {self.__str__()}. It is "
+                    f"either submitted, running, or being"
+                    f" cancelled."
+                )
 
         with db.connect(database) as fdb:
             parents = self.parents
-            parent_id = [parent.id_ if isinstance(parent, Relay) else parent
-                         for parent in parents]
+            parent_id = [
+                parent.id_ if isinstance(parent, Relay) else parent
+                for parent in parents
+            ]
             if self._database is None:
                 if len(parents) != 0 and isinstance(parents[0], Atoms):
                     self.id_ = fdb.write(parents[0], label=self.label)
@@ -213,26 +224,26 @@ class Relay():
         """
 
         if self.needs_commit():
-            raise RuntimeError('Commit the relay.')
+            raise RuntimeError("Commit the relay.")
 
         # recursively submitting parents
         parent_submitted = False
         for parent in self.parents:
             if isinstance(parent, Relay):
-                status = parent.start(force=force_all,
-                                      force_all=force_all)
-                parent_submitted = (parent_submitted
-                                    or status)
+                status = parent.start(force=force_all, force_all=force_all)
+                parent_submitted = parent_submitted or status
 
         with db.connect(self.database) as fdb:
-            status = fdb.get(self.id_).get('status', '')
+            status = fdb.get(self.id_).get("status", "")
 
-        if status in ['submit', 'running']:
+        if status in ["submit", "running"]:
             return True
-        if status == 'cancel':
+        if status == "cancel":
             return False
-        if ((status == 'done' and (force or parent_submitted))
-                or status in ['', 'failed']):
+        if (status == "done" and (force or parent_submitted)) or status in [
+            "",
+            "failed",
+        ]:
             submit(self.id_, self.database, self.runnername)
             return True
         return False
@@ -245,18 +256,18 @@ class Relay():
             all (bool): Cancel all runs in the parent relay too.
         """
         if self._database is None:
-            raise RuntimeError('Relay not commited')
+            raise RuntimeError("Relay not commited")
 
         with db.connect(self._database) as fdb:
-            status = fdb.get(self.id_).get('status', '')
-            if status in ['submit', 'running']:
+            status = fdb.get(self.id_).get("status", "")
+            if status in ["submit", "running"]:
                 cancel(self.id_, self._database)
 
             if cancel_all:
                 spider = self._spider()
                 for value in spider.values():
-                    status = fdb.get(value.id_).get('status', '')
-                    if status in ['submit', 'running']:
+                    status = fdb.get(value.id_).get("status", "")
+                    if status in ["submit", "running"]:
                         value.cancel(cancel_all=cancel_all)
 
     def get_status(self):
@@ -267,9 +278,9 @@ class Relay():
             str: status of present row
         """
         if self._database is None:
-            return 'Relay not commited'
+            return "Relay not commited"
         with db.connect(self._database) as fdb:
-            status = fdb.get(self.id_).get('status', 'No status')
+            status = fdb.get(self.id_).get("status", "No status")
         return status
 
     status = property(get_status, doc=("Returns status of present relay row"))
@@ -287,7 +298,7 @@ class Relay():
             parents = [parents]
         if len(parents) != 0 and not isinstance(parents[0], Atoms):
             bool_ = [isinstance(parent, (int, Relay)) for parent in parents]
-            assert np.all(bool_), 'parent should be a relay or an int index'
+            assert np.all(bool_), "parent should be a relay or an int index"
         self._parents = parents
         self._updated = False
 
@@ -315,8 +326,8 @@ class Relay():
     def runnername(self, runnername):
         if runnername is not None:
             assert isinstance(runnername, str)
-            is_defined = runnername.split(':')[0] in runner_types
-            assert is_defined, f'{runnername} type not in {runner_types}'
+            is_defined = runnername.split(":")[0] in runner_types
+            assert is_defined, f"{runnername} type not in {runner_types}"
         self._runnername = deepcopy(runnername)
         self._updated = False
 
@@ -326,12 +337,12 @@ class Relay():
         database associated with the relay
         """
         if self._database is None:
-            raise RuntimeError('Rely not commited, no database exists.')
+            raise RuntimeError("Rely not commited, no database exists.")
         return self._database
 
     @database.setter
     def database(self, database):
-        raise RuntimeError('database should not be changed.')
+        raise RuntimeError("database should not be changed.")
 
     @property
     def label(self):
@@ -346,9 +357,11 @@ class Relay():
         for i in [int, float]:
             try:
                 _ = i(label)
-                raise RuntimeError(f'Label {label} is put in as string'
-                                   f' but can be interpreted as {i.__name__}!'
-                                   f' Not accepted by ASE database')
+                raise RuntimeError(
+                    f"Label {label} is put in as string"
+                    f" but can be interpreted as {i.__name__}!"
+                    f" Not accepted by ASE database"
+                )
             except ValueError:
                 pass
         self._label = label
@@ -367,47 +380,49 @@ class Relay():
             :class:`~ase.db.row`: atoms row of attached with the relay
         """
         if self._database is None:
-            raise RuntimeError('Relay not commited')
+            raise RuntimeError("Relay not commited")
 
         fdb = db.connect(self.database)
 
         while True:
             row = fdb.get(self.id_)
 
-            status = row.get('status', 'done')
+            status = row.get("status", "done")
 
-            if status == 'done' or not wait:
+            if status == "done" or not wait:
                 break
-            if status == 'failed':
-                raise RuntimeError(f'Run {self.id_} failed')
+            if status == "failed":
+                raise RuntimeError(f"Run {self.id_} failed")
 
             time.sleep(cycle_time)
 
         return row
 
-    row = property(get_row, doc=('Atoms row attached with the relay, awaits '
-                                 'for the run to finish'))
+    row = property(
+        get_row,
+        doc=("Atoms row attached with the relay, awaits " "for the run to finish"),
+    )
 
     def _to_dict(self):
         """
         Converts relay to dict. relay parents are saved as id.
         """
         dict_ = {}
-        dict_['id'] = self.id_
-        dict_['updated'] = self._updated
-        dict_['database'] = self.database
-        dict_['runnerdata'] = self.runnerdata.data
-        dict_['runnername'] = self.runnername
-        dict_['label'] = self.label
-        dict_['parents'] = []
+        dict_["id"] = self.id_
+        dict_["updated"] = self._updated
+        dict_["database"] = self.database
+        dict_["runnerdata"] = self.runnerdata.data
+        dict_["runnername"] = self.runnername
+        dict_["label"] = self.label
+        dict_["parents"] = []
         for parent in self.parents:
             if isinstance(parent, Atoms):
                 pass
                 # dict_['parents'].append(parent.todict())
             elif isinstance(parent, int):
-                dict_['parents'].append(parent)
+                dict_["parents"].append(parent)
             elif isinstance(parent, Relay):
-                dict_['parents'].append(parent.id_)
+                dict_["parents"].append(parent.id_)
 
         return dict_
 
@@ -426,7 +441,7 @@ class Relay():
         if parent_dict is None:
             parent_dict = {}
         parents = []
-        for parent in dict_['parents']:
+        for parent in dict_["parents"]:
             if isinstance(parent, (int, str)):
                 if parent in parent_dict:
                     parents.append(parent_dict[parent])
@@ -435,15 +450,17 @@ class Relay():
             elif isinstance(parent, dict):
                 parents.append(Atoms.fromdict(parent))
             else:
-                raise RuntimeError(f'Unidentified parent: {parent}')
+                raise RuntimeError(f"Unidentified parent: {parent}")
 
-        relay = cls(dict_['label'],
-                    parents,
-                    RunnerData.from_data_dict(dict_['runnerdata']),
-                    dict_['runnername'])
-        relay.id_ = dict_['id']
-        relay._updated = dict_['updated']
-        relay._database = dict_['database']
+        relay = cls(
+            dict_["label"],
+            parents,
+            RunnerData.from_data_dict(dict_["runnerdata"]),
+            dict_["runnername"],
+        )
+        relay.id_ = dict_["id"]
+        relay._updated = dict_["updated"]
+        relay._database = dict_["database"]
 
         return relay
 
@@ -458,9 +475,9 @@ class Relay():
         spider = self._spider()
         for key, value in spider.items():
             spider[key] = value._to_dict()
-        dict_['parent_dict'] = spider
+        dict_["parent_dict"] = spider
 
-        with open(filename, 'w') as fio:
+        with open(filename, "w") as fio:
             json.dump(dict_, fio)
 
     @classmethod
@@ -482,7 +499,7 @@ class Relay():
         Parses raw dict data saved in json or database
         """
         # preparing parent_dict
-        parent_dict_ = data.pop('parent_dict', {})
+        parent_dict_ = data.pop("parent_dict", {})
         # make relay objects
         parent_dict = {}
         for key, value in parent_dict_.items():
@@ -511,13 +528,13 @@ class Relay():
         row = fdb.get(index)
 
         data = {}
-        data['id'] = index
-        data['updated'] = True
-        data['runnerdata'] = row.data.get('runner', {})
-        data['runnername'] = row.get('runner', None)
-        data['label'] = row.get('label', '')
-        data['parents'] = row.data.get('runner', {}).get('parents', [])
-        for parent in data['parents']:
+        data["id"] = index
+        data["updated"] = True
+        data["runnerdata"] = row.data.get("runner", {})
+        data["runnername"] = row.get("runner", None)
+        data["label"] = row.get("label", "")
+        data["parents"] = row.data.get("runner", {}).get("parents", [])
+        for parent in data["parents"]:
             _, parent_dict = cls._from_database(parent, fdb, parent_dict)
             parent_dict[parent] = _
 
@@ -538,10 +555,10 @@ class Relay():
         with db.connect(database) as fdb:
             data, parent_dict = cls._from_database(index, fdb)
 
-        data['database'] = database
+        data["database"] = database
         for value in parent_dict.values():
-            value['database'] = database
-        data['parent_dict'] = parent_dict
+            value["database"] = database
+        data["parent_dict"] = parent_dict
 
         return cls._parse_dict(data)
 
@@ -569,8 +586,9 @@ class Relay():
             if isinstance(parent, Relay):
                 if parent.id_ not in dict_:
                     if parent.id_ in parent_call:
-                        raise RuntimeError('Cyclic connection detected.'
-                                           ' Abandon ship!')
+                        raise RuntimeError(
+                            "Cyclic connection detected." " Abandon ship!"
+                        )
                     dict_[parent.id_] = parent
 
                     dict_ = parent._spider(dict_, parent_call)
@@ -587,8 +605,9 @@ class Relay():
             filename (str): png filename to save the graph
             add_tasks (bool): adds task information to the graph
         """
-        get_graphical_status(filename, [self.id_], self,
-                             add_tasks=add_tasks, _get_info=_get_info)
+        get_graphical_status(
+            filename, [self.id_], self, add_tasks=add_tasks, _get_info=_get_info
+        )
 
     def replace_runnerdata(self, runnerdata):
         """
@@ -616,8 +635,7 @@ def _get_info(input_id, relay):
     """returns parent list, used in get_graphical_status"""
     if input_id != relay.id_:
         if isinstance(input_id, Atoms):
-            return (input_id.get_chemical_formula(),
-                    None, [], 'No status', [])
+            return (input_id.get_chemical_formula(), None, [], "No status", [])
         if input_id in relay._spider():
             relay = relay._spider().get(input_id, None)
         else:
@@ -625,31 +643,32 @@ def _get_info(input_id, relay):
             tasks = []
             name = None
             if relay.database is None:
-                status = 'No status'
+                status = "No status"
                 formula = input_id
             else:
                 with db.connect(relay.database) as fdb:
                     row = fdb.get(input_id)
                 formula = row.formula
-                status = row.get('status', 'No status')
-                if 'runner' in row.data:
+                status = row.get("status", "No status")
+                if "runner" in row.data:
                     # no parents returned, since out of relay
                     # parents = row.data['runner'].get('parents', [])
-                    tasks = row.data['runner']['tasks']
-                    name = row.data['runner']['name']
+                    tasks = row.data["runner"]["tasks"]
+                    name = row.data["runner"]["name"]
             return formula, name, parents, status, tasks
 
-    parents = [parent.id_ if isinstance(parent, Relay) else parent for parent
-               in relay.parents]
+    parents = [
+        parent.id_ if isinstance(parent, Relay) else parent for parent in relay.parents
+    ]
     tasks = relay.runnerdata.tasks
     name = relay.runnerdata.name
     formula = relay.__str__()
     if relay.database is None:
-        status = 'No status'
+        status = "No status"
     else:
         with db.connect(relay.database) as fdb:
             row = fdb.get(relay.id_)
-            status = row.get('status', 'No status')
-            if status == 'done':
+            status = row.get("status", "No status")
+            if status == "done":
                 formula = row.formula
     return formula, name, parents, status, tasks
