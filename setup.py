@@ -3,7 +3,7 @@ import re
 
 
 with open("runner/__init__.py") as fd:
-    version = re.search("__version__ = '(.*)'", fd.read()).group(1)
+    version = re.search("__version__ = \"(.*)\"", fd.read()).group(1)
 
 
 if __name__ == "__main__":
