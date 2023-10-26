@@ -179,3 +179,8 @@ or can be run via :ref:`cli` tools.
 
    Snapshot of the graph of the entire workflow needed to generate the last 
    row, after completing all runs.
+
+.. note::
+    `Graphviz 
+    <https://graphviz.readthedocs.io/en/stable/manual.html#installation>`_
+    needs to be properly installed, for the graph to be generated.
