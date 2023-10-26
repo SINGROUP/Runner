@@ -17,6 +17,7 @@ Runner is an open-source python package to easly schedule, automate, and share a
    tutorial
    docs
    cli
+   contributing
 
 
 
