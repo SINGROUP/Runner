@@ -260,8 +260,11 @@ def test_to_from_data():
 
     with db.connect("database.db") as fdb:
         fdb.write(Atoms())
+    with open("test.bin", "wb") as fio:
+        fio.write(b"\xff;:")
 
     runner = RunnerData.from_data_dict(success)
+    runner.add_file("test.bin")
     runner.to_db("database.db", 1)
     runner.to_json("database.json")
     runner = RunnerData.from_db("database.db", 1)
@@ -271,6 +274,7 @@ def test_to_from_data():
     assert parents[0] == 1 and parents[1] == 2
     assert isinstance(scheduler_options, dict)
     assert isinstance(files, dict)
+    assert files["test.bin"] == "data:application/octet-stream;base64,/zs6"
     assert "energy.py" in files
     assert len(tasks) == 4
     runner = RunnerData.from_json("database.json")
@@ -280,5 +284,6 @@ def test_to_from_data():
     assert parents[0] == 1 and parents[1] == 2
     assert isinstance(scheduler_options, dict)
     assert isinstance(files, dict)
+    assert files["test.bin"] == "data:application/octet-stream;base64,/zs6"
     assert "energy.py" in files
     assert len(tasks) == 4

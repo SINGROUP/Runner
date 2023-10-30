@@ -8,6 +8,7 @@ import json
 import logging
 import time
 import os
+from base64 import b64decode
 from datetime import datetime
 from abc import ABC, abstractmethod
 from ase import db
@@ -481,7 +482,11 @@ class BaseRunner(ABC):
         """
         # write files
         for i, string in files.items():
-            write_mode = "wb" if isinstance(string, bytes) else "w"
+            if string.startswith("data:application/octet-stream;base64,"):
+                write_mode = "wb"
+                string = b64decode(string[37:].encode())
+            else:
+                write_mode = "w"
             with open(i, write_mode) as file_o:
                 file_o.write(string)
 

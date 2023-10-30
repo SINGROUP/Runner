@@ -14,6 +14,8 @@ from ase.atoms import Atoms
 def main(atoms, conf=0):
     assert conf == 0, 'bad params'
     assert isinstance(atoms[0], Atoms), 'bad atoms'
+    with open("test.bin", "rb") as fio:
+        assert fio.read() == b"\\xff;:"
     return atoms
 """
 runner = {
@@ -24,7 +26,10 @@ runner = {
         ["python", "energy.py", {"conf": 0}],
         ["python", "energy.py", {"conf": 0}, "python3"],
     ],
-    "files": {"energy.py": energy},
+    "files": {
+        "energy.py": energy,
+        "test.bin": "data:application/octet-stream;base64,/zs6",
+    },
 }
 
 

@@ -1,6 +1,7 @@
 """ Utility to handle runner data"""
 import json
 import os
+from base64 import b64encode
 from copy import copy
 
 from runner.utils.utils import json_keys2int, get_db_connect
@@ -161,7 +162,10 @@ class RunnerData:
             # file is binary
             with open(filename, "rb") as fio:
                 basename = os.path.basename(add_as)
-                self.data["files"][basename] = fio.read()
+                self.data["files"][basename] = (
+                    "data:application/octet-stream;base64,"
+                    + b64encode(fio.read()).decode()
+                )
 
     def add_files(self, filenames, add_as=None):
         """Adds files to runner data
