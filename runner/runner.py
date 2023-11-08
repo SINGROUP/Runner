@@ -13,7 +13,7 @@ from datetime import datetime
 from abc import ABC, abstractmethod
 from ase import db
 from ase import Atoms
-from runner.utils import Cd, RUN_PY
+from runner.utils import Cd, run
 from runner.utils.runnerdata import RunnerData
 
 logger = logging.getLogger(__name__)
@@ -25,9 +25,6 @@ stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(formatter)
 
 logger.addHandler(stream_handler)
-
-
-default_files = ["run.sh", "batch.slrm", "atoms.pkl"]
 
 
 class BaseRunner(ABC):
@@ -494,6 +491,9 @@ class BaseRunner(ABC):
         with open("atoms.pkl", "wb") as file_o:
             pickle.dump(atoms, file_o)
 
+        # copy run file
+        shutil.copyfile(run.__file__, "run.py")
+
         # write run scripts
         run_scripts = []
         py_run = 0
@@ -509,29 +509,29 @@ class BaseRunner(ABC):
                 shell_run = "python"
                 if len(task) > 3:
                     shell_run = task[3]
-                shell_run += " run{}.py".format(py_run)
-                shell_run += " > run{}.out".format(py_run)
-                run_scripts.append(shell_run)
 
                 if len(task) > 2:
                     params = task[2]
                 else:
                     params = {}
+
                 # write params
                 try:
                     with open("params{}.json".format(py_run), "w") as file_o:
                         json.dump(params, file_o)
                 except TypeError as err:
                     status = "failed"
-                    log_msg = "{}\n Error writing params: " "{}\n".format(
+                    log_msg = "{}\n Error writing params: {}\n".format(
                         datetime.now(), err.args[0]
                     )
                     break
                 # making python executable
                 func_name = task[1]
                 func_name = func_name[:-3] if func_name.endswith(".py") else func_name
-                with open("run{}.py".format(py_run), "w") as file_o:
-                    file_o.write(RUN_PY.format(func=func_name, ind=py_run))
+
+                # add to run_scripts
+                shell_run += f" run.py {func_name} {py_run} > run{py_run}.out"
+                run_scripts.append(shell_run)
                 py_run += 1
 
         return run_scripts, status, log_msg

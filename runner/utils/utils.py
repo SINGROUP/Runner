@@ -5,32 +5,6 @@ import os
 import ase.db as db
 
 
-RUN_PY = """
-import json
-import pickle
-from ase.atoms import Atoms
-from {func} import main
-
-def json_keys2int(x):
-    # if dict key can be converted to int
-    # then convert to int
-    if isinstance(x, dict):
-        try:
-            return {{int(k):v for k,v in x.items()}}
-        except ValueError:
-            pass
-    return x
-
-with open("params{ind}.json") as f:
-    params = json.load(f, object_hook=json_keys2int)
-with open("atoms.pkl", "rb") as f:
-    atoms = pickle.load(f)
-atoms = main(atoms, **params)
-with open("atoms.pkl", "wb") as f:
-    pickle.dump(atoms, f)
-"""
-
-
 class Cd:
     """Context manager for changing the current working directory
 

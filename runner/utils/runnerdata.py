@@ -7,6 +7,9 @@ from copy import copy
 from runner.utils.utils import json_keys2int, get_db_connect
 
 
+default_files = ["run.sh", "batch.slrm", "atoms.pkl", "run.py", "status.txt", "job.id"]
+
+
 class RunnerData:
     """Class to handle runner data using helper function
 
@@ -372,6 +375,8 @@ def _test_files(files, log_msg=""):
         err = log_msg + "Runner: files should be a dictionary\n"
         raise RuntimeError(err)
     for filename, content in files.items():
+        if filename in default_files:
+            raise RuntimeError(log_msg + f"Runner: {filename=} in {default_files=}")
         if not isinstance(filename, str):
             err = log_msg + "Runner: filenames should be str\n"
             raise RuntimeError(err)
