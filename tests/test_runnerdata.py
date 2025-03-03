@@ -1,7 +1,9 @@
-import pytest
 import os
+
 import ase.db as db
+import pytest
 from ase.atoms import Atoms
+
 from runner.utils.runnerdata import RunnerData
 
 

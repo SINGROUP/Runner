@@ -1,11 +1,11 @@
-""" Utility to handle runner data"""
+"""Utility to handle runner data"""
+
 import json
 import os
 from base64 import b64encode
 from copy import copy
 
-from runner.utils.utils import json_keys2int, get_db_connect
-
+from runner.utils.utils import get_db_connect, json_keys2int
 
 default_files = ["run.sh", "batch.slrm", "atoms.pkl", "run.py", "status.txt", "job.id"]
 
@@ -183,9 +183,7 @@ class RunnerData:
             if not isinstance(add_as, (tuple, list)):
                 add_as = [add_as]
             if len(add_as) != len(filenames):
-                raise RuntimeError(
-                    "Length of filenames and add_as should" " be the same"
-                )
+                raise RuntimeError("Length of filenames and add_as should be the same")
         else:
             add_as = filenames
 
@@ -366,7 +364,7 @@ def _test_parents(parents, log_msg=""):
         raise RuntimeError(err)
     for i in parents:
         if not isinstance(i, int):
-            err = log_msg + "Runner: parents should be a list of" "int\n"
+            err = log_msg + "Runner: parents should be a list ofint\n"
             raise RuntimeError(err)
 
 
@@ -381,7 +379,7 @@ def _test_files(files, log_msg=""):
             err = log_msg + "Runner: filenames should be str\n"
             raise RuntimeError(err)
         if not isinstance(content, (str, bytes)):
-            err = log_msg + "Runner: file contents should be str" " or bytes\n"
+            err = log_msg + "Runner: file contents should be str or bytes\n"
             raise RuntimeError(err)
 
 
@@ -401,14 +399,12 @@ def _test_tasks(tasks, files=None, log_msg="", _skip_empty_task_test=True):
             raise RuntimeError(err)
         if len(task) < 2:
             err = (
-                log_msg + "Runner: each task sould have a name"
-                " and command or filename\n"
+                log_msg
+                + "Runner: each task sould have a name and command or filename\n"
             )
             raise RuntimeError(err)
         if not isinstance(task[1], str):
-            err = (
-                log_msg + "Runner: shell command or python filename" " should be str\n"
-            )
+            err = log_msg + "Runner: shell command or python filename should be str\n"
             raise RuntimeError(err)
         if task[0] == "python":
             # testing filename in files
@@ -417,20 +413,20 @@ def _test_tasks(tasks, files=None, log_msg="", _skip_empty_task_test=True):
                 filename += ".py"
             if filename not in files:
                 err = (
-                    log_msg + "Runner: python filename {} should"
-                    " be in files\n".format(filename)
+                    log_msg
+                    + "Runner: python filename {} should be in files\n".format(filename)
                 )
                 raise RuntimeError(err)
             if len(task) > 2:
                 if not isinstance(task[2], dict):
-                    err = log_msg + "Runner: python parameters " "should be dict\n"
+                    err = log_msg + "Runner: python parameters should be dict\n"
                     raise RuntimeError(err)
             if len(task) > 3:
                 if not isinstance(task[3], str):
-                    err = log_msg + "Runner: python command should" "be str\n"
+                    err = log_msg + "Runner: python command shouldbe str\n"
                     raise RuntimeError(err)
         elif task[0] != "shell":
-            raise RuntimeError("Runner: task should either be 'shell'" " or 'python'\n")
+            raise RuntimeError("Runner: task should either be 'shell' or 'python'\n")
 
 
 def _test_scheduler_options(scheduler_options, log_msg=""):

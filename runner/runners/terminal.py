@@ -1,6 +1,7 @@
-from runner.runner import BaseRunner
 import subprocess as sb
-from _datetime import datetime
+from datetime import datetime
+
+from runner.runner import BaseRunner
 
 
 class TerminalRunner(BaseRunner):
@@ -67,7 +68,7 @@ class TerminalRunner(BaseRunner):
         # default values
         job_id = None
 
-        log_msg = "{}\nSubmission using {} scheduler\n" "".format(
+        log_msg = "{}\nSubmission using {} scheduler\n".format(
             datetime.now(), self.name
         )
         # add start status file
@@ -97,7 +98,7 @@ class TerminalRunner(BaseRunner):
             log_msg += "Submitted batch job {}\n".format(job_id)
         else:
             # failed
-            log_msg += "Submission failed: {}" "\n".format(out.stderr.decode("utf-8"))
+            log_msg += "Submission failed: {}\n".format(out.stderr.decode("utf-8"))
         return job_id, log_msg
 
     def _cancel(self, job_id):

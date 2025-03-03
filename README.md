@@ -13,8 +13,10 @@ Tools to easly schedule atomistic simulation workflow. Docs available at [readth
 
 ## Installation
 
+The package can be installed with [uv](https://docs.astral.sh/uv/):
+
 ```sh
 git clone https://github.com/SINGROUP/Runner.git
 cd Runner
-pip install . --upgrade
+uv sync
 ```

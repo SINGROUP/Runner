@@ -5,8 +5,8 @@ Installation
 Requirements
 ====================
 
-* Python_ 3.6 or newer
-* ASE_ 3.19 or newer
+* Python_ 3.10 or newer
+* ASE_ 3.22.1 or older
 
 .. _Python: https://www.python.org/
 .. _ASE: https://wiki.fysik.dtu.dk/ase/index.html
@@ -23,15 +23,15 @@ installed during setup.
 :git:
 
 The source is available on `github <https://github.com/SINGROUP/Runner>`_,
-which can be installed as::
+which can be installed using `uv <https://docs.astral.sh/uv/>`_ as::
 
     $ git clone https://github.com/SINGROUP/Runner.git
     $ cd Runner
-    $ pip install . --upgrade
+    $ uv sync
 
 
-To update the installation::
+To use familiar `pip` workflow::
 
     $ cd Runner
     $ git pull
-    $ pip install . --upgrade
+    $ uv pip install . --upgrade

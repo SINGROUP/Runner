@@ -1,7 +1,7 @@
-from runner.runner import BaseRunner
 import subprocess as sb
-from _datetime import datetime
+from datetime import datetime
 
+from runner.runner import BaseRunner
 
 # List of states from the man page of squeue
 # states are mapped to status and log message
@@ -15,29 +15,28 @@ _slurm_map = {
     "COMPLETED": ["done", "Job has terminated all processes on all nodes."],
     "CONFIGURING": [
         "running",
-        "Job  has  been allocated resources, but are "
-        "waiting for them to become ready for use "
-        "(e.g. booting).",
+        "Job  has  been allocated resources, but are waiting for them to become ready "
+        "for use (e.g. booting).",
     ],
     "COMPLETING": [
         "running",
-        "Job is in the process of completing. Some "
-        "processes on some nodes may still be active.",
+        "Job is in the process of completing. Some processes on some nodes may still "
+        "be active.",
     ],
     "FAILED": [
         "failed",
-        "Job  terminated  with  non-zero  exit code or other " "failure condition.",
+        "Job  terminated  with  non-zero  exit code or other failure condition.",
     ],
     "NODE_FAIL": [
         "failed",
-        "Job terminated due to failure of one or more " "allocated resources",
+        "Job terminated due to failure of one or more allocated resources",
     ],
     "PENDING": ["running", "Job is awaiting resource allocation."],
     "PREEMPTED": ["failed", "Job terminated due to preemption."],
     "RUNNING": ["running", "Job currently has an allocation."],
     "SUSPENDED": [
         "running",
-        "Job  has an allocation, but execution has been " "suspended",
+        "Job  has an allocation, but execution has been suspended",
     ],
     "TIMEOUT": ["failed", "Job terminated upon reaching its time limit."],
 }
@@ -107,7 +106,7 @@ class SlurmRunner(BaseRunner):
         # default values
         job_id = None
 
-        log_msg = "{}\nSubmission using {} scheduler\n" "".format(
+        log_msg = "{}\nSubmission using {} scheduler\n".format(
             datetime.now(), self.name
         )
         # add interpreter
@@ -115,7 +114,7 @@ class SlurmRunner(BaseRunner):
 
         # add SBATCH options
         for key, value in scheduler_options.items():
-            run_script += "#SBATCH {}{}{}\n" "".format(
+            run_script += "#SBATCH {}{}{}\n".format(
                 key, "=" if key.startswith("--") else " ", value
             )
 
@@ -137,7 +136,7 @@ class SlurmRunner(BaseRunner):
             log_msg += "Submitted batch job {}\n".format(job_id)
         else:
             # failed
-            log_msg += "Submission failed: {}" "\n".format(out.stderr.decode("utf-8"))
+            log_msg += "Submission failed: {}\n".format(out.stderr.decode("utf-8"))
         return job_id, log_msg
 
     def _cancel(self, job_id):
@@ -203,7 +202,7 @@ class SlurmRunner(BaseRunner):
                 status_list.append(_slurm_map[state][0])
             except KeyError:
                 status = "failed"
-                log_msg += "{}\n Undefined slurm state:{}\n" "".format(end_time, state)
+                log_msg += "{}\n Undefined slurm state:{}\n".format(end_time, state)
                 return status, log_msg
 
         if "failed" in status_list:

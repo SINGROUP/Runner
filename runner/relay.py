@@ -1,15 +1,17 @@
 """
 Relay to form complex workflows
 """
-import time
+
 import json
+import time
 from copy import deepcopy
+
 import numpy as np
-from ase import Atoms
-from ase import db
-from runner.utils import submit, cancel, get_graphical_status
-from runner.utils.runnerdata import RunnerData
+from ase import Atoms, db
+
 from runner.runners import runner_types
+from runner.utils import cancel, get_graphical_status, submit
+from runner.utils.runnerdata import RunnerData
 
 
 class Relay:
@@ -125,17 +127,15 @@ class Relay:
         if database is None:
             if self._database is None:
                 raise RuntimeError(
-                    f"{self.__str__()} needs a"
-                    f" database for commit. No previous"
-                    f" database commits."
+                    f"{self.__str__()} needs a database for commit. "
+                    f"No previous database commits."
                 )
             database = self._database
         elif self._database is not None:
             if self._database != database:
                 raise RuntimeError(
-                    f"{self.__str__()} already commited with"
-                    f" {self._database}, cannot commit with"
-                    f" {database}"
+                    f"{self.__str__()} already commited with {self._database}, "
+                    f"cannot commit with {database}"
                 )
 
         # recursively commit parents
@@ -153,9 +153,8 @@ class Relay:
 
             if status in ["submit", "running", "cancel"]:
                 raise RuntimeError(
-                    f"cannot commit {self.__str__()}. It is "
-                    f"either submitted, running, or being"
-                    f" cancelled."
+                    f"cannot commit {self.__str__()}. It is either submitted, "
+                    f"running, or being cancelled."
                 )
 
         with db.connect(database) as fdb:
@@ -400,7 +399,7 @@ class Relay:
 
     row = property(
         get_row,
-        doc=("Atoms row attached with the relay, awaits " "for the run to finish"),
+        doc=("Atoms row attached with the relay, awaits for the run to finish"),
     )
 
     def _to_dict(self):
@@ -586,9 +585,7 @@ class Relay:
             if isinstance(parent, Relay):
                 if parent.id_ not in dict_:
                     if parent.id_ in parent_call:
-                        raise RuntimeError(
-                            "Cyclic connection detected." " Abandon ship!"
-                        )
+                        raise RuntimeError("Cyclic connection detected. Abandon ship!")
                     dict_[parent.id_] = parent
 
                     dict_ = parent._spider(dict_, parent_call)

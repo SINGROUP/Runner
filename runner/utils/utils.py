@@ -1,7 +1,9 @@
 """
 Utility tools for runners
 """
+
 import os
+
 import ase.db as db
 
 
@@ -125,7 +127,7 @@ def get_graphical_status(
         from graphviz import Digraph
     except ModuleNotFoundError:
         raise ModuleNotFoundError(
-            "get_graphical_status needs graphviz, " "run: pip install graphviz"
+            "get_graphical_status needs graphviz, run: pip install graphviz"
         )
 
     def add_task_graph(name, tasks, dot):
