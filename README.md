@@ -16,5 +16,5 @@ Tools to easly schedule atomistic simulation workflow. Docs available at [readth
 ```sh
 git clone https://github.com/SINGROUP/Runner.git
 cd Runner
-pip install . --upgrade
+uv sync
 ```
