@@ -7,19 +7,22 @@ it under the terms of the GNU Lesser General Public License as published by
 the Free Software Foundation, either version 2.1 of the License, or
 (at your option) any later version.
 """
+
 import argparse
 import textwrap
+
 from ase.db import connect
 from ase.io.formats import string2index
+
 from runner.runners.__init__ import runner_type2func
 from runner.utils import (
-    submit,
     cancel,
-    get_status,
     get_graphical_status,
     get_runner_list,
+    get_status,
     remove_runner,
     stop_runner,
+    submit,
 )
 
 
@@ -100,7 +103,7 @@ class CLICommand:
 
         # stop runner
         desc = "Stop a runner from metadata."
-        add = "Runner isn't stopped immediately, but after completing spool" "process."
+        add = "Runner isn't stopped immediately, but after completing spool process."
         subparser = subparsers.add_parser(
             "stop",
             formatter_class=Formatter,
@@ -113,10 +116,7 @@ class CLICommand:
 
         # submit a row
         desc = "Submit row(s) for run."
-        add = (
-            "Row ids can be int or python like"
-            " slice, eg. '1:4' gives ids 1, 2, and 3"
-        )
+        add = "Row ids can be int or python like slice, eg. '1:4' gives ids 1, 2, and 3"
         subparser = subparsers.add_parser(
             "submit",
             formatter_class=Formatter,
@@ -140,10 +140,7 @@ class CLICommand:
 
         # cancel a submitted row
         desc = "Cancel row(s) for run."
-        add = (
-            "Row ids can be int or python like"
-            " slice, eg. '1:4' gives ids 1, 2, and 3"
-        )
+        add = "Row ids can be int or python like slice, eg. '1:4' gives ids 1, 2, and 3"
         subparser = subparsers.add_parser(
             "cancel",
             formatter_class=Formatter,
@@ -170,10 +167,7 @@ class CLICommand:
 
         # check status of a row
         desc = "Check running status of row(s)"
-        add = (
-            "Row ids can be int or python like"
-            " slice, eg. '1:4' gives ids 1, 2, and 3"
-        )
+        add = "Row ids can be int or python like slice, eg. '1:4' gives ids 1, 2, and 3"
         subparser = subparsers.add_parser(
             "status",
             formatter_class=Formatter,

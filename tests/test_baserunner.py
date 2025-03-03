@@ -1,12 +1,11 @@
+import os
 import time
 from copy import copy
-import os
 
 import ase.db as db
 from ase.atoms import Atoms
 
 from runner import TerminalRunner
-
 
 energy = """\
 from ase.atoms import Atoms
@@ -72,9 +71,9 @@ def test_successful_run():
     run.spool(_endless=False)
     assert fdb.get(id_3).status == "done"
 
-    assert not str(id_) in os.listdir(), "no cleanup after done"
-    assert not str(id_1) in os.listdir(), "no cleanup after done"
-    assert not str(id_2) in os.listdir(), "no cleanup after done"
+    assert str(id_) not in os.listdir(), "no cleanup after done"
+    assert str(id_1) not in os.listdir(), "no cleanup after done"
+    assert str(id_2) not in os.listdir(), "no cleanup after done"
     assert str(id_3) in os.listdir(), "keep_run failed"
 
 
@@ -111,6 +110,6 @@ def test_failed_run():
         assert fdb.get(i).status == "failed", i
         if i == id_[0]:
             assert str(i) in os.listdir(), "failed run folder cleaned"
-            assert (
-                fdb.get(i).data["runner"]["fail_count"] == 1
-            ), "fail count not updated"
+            assert fdb.get(i).data["runner"]["fail_count"] == 1, (
+                "fail count not updated"
+            )

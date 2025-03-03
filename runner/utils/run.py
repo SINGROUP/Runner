@@ -2,9 +2,9 @@
 python file to run python tasks
 """
 
+import argparse
 import json
 import pickle
-import argparse
 
 
 def main():

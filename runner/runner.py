@@ -2,17 +2,18 @@
 Base runner for different runnners
 """
 
-import shutil
-import pickle
 import json
 import logging
-import time
 import os
+import pickle
+import shutil
+import time
+from abc import ABC, abstractmethod
 from base64 import b64decode
 from datetime import datetime
-from abc import ABC, abstractmethod
-from ase import db
-from ase import Atoms
+
+from ase import Atoms, db
+
 from runner.utils import Cd, run
 from runner.utils.runnerdata import RunnerData
 
@@ -105,7 +106,7 @@ class BaseRunner(ABC):
         if self.name in runners:
             if not update:
                 raise RuntimeError(
-                    "Runner exists, pass argument update as" " true to update"
+                    "Runner exists, pass argument update as true to update"
                 )
             if runners[self.name].get("running", False):
                 raise RuntimeError("Runner already running")
@@ -249,7 +250,7 @@ class BaseRunner(ABC):
                 status, atoms, log_msg = [
                     "failed",
                     None,
-                    "{}\nJob id lost\n" "".format(datetime.now()),
+                    "{}\nJob id lost\n".format(datetime.now()),
                 ]
             if status != "running":
                 # if not still running, update status and add log message
@@ -258,7 +259,7 @@ class BaseRunner(ABC):
         # update status for jobs that stopped running
         for id_, values in update_ids_status.items():
             status, log_msg = values
-            logger.debug("ID {} finished" "".format(id_))
+            logger.debug("ID {} finished".format(id_))
 
             if status == "done":
                 with Cd(self.run_folder, mkdir=False):
@@ -273,7 +274,7 @@ class BaseRunner(ABC):
                             assert isinstance(atoms, Atoms)
                         except Exception as e:
                             status = "failed"
-                            log_msg += "{}\n Unpickling failed: {}\n" "".format(
+                            log_msg += "{}\n Unpickling failed: {}\n".format(
                                 datetime.now(), e
                             )
             # run post-tasks
@@ -385,7 +386,7 @@ class BaseRunner(ABC):
                 _ = row.data.get("runner", {})
                 _.update(
                     {
-                        "log": "{}\n{}\n" "".format(datetime.now(), err),
+                        "log": "{}\n{}\n".format(datetime.now(), err),
                         "fail_count": self.multi_fail + 1,
                     }
                 )
@@ -451,14 +452,14 @@ class BaseRunner(ABC):
                     if status == "submit":
                         job_id, log_msg = self._submit(run_scripts, scheduler_options)
                         if job_id:
-                            logger.debug("submitting success {}" "".format(job_id))
+                            logger.debug("submitting success {}".format(job_id))
                             # update status and save job_id
                             status = "running"
                             with open("job.id", "w") as file_o:
                                 file_o.write("{}".format(job_id))
                             sent_jobs += 1
                         else:
-                            logger.debug("submitting failed {}" "".format(job_id))
+                            logger.debug("submitting failed {}".format(job_id))
                             status = "failed"
 
             # updating database
@@ -469,8 +470,9 @@ class BaseRunner(ABC):
             # adds status, name of calculation, and data
             self.fdb.update(id_, status=status, run_name=name, data=data)
             logger.info(
-                "ID {} submission: "
-                "{}".format(id_, (status if status == "failed" else "successful"))
+                "ID {} submission: {}".format(
+                    id_, (status if status == "failed" else "successful")
+                )
             )
 
     def _write_run_data(self, atoms, tasks, files, status, log_msg):
@@ -555,16 +557,16 @@ class BaseRunner(ABC):
                 self._cancel(job_id)
                 status, log_msg = [
                     "failed",
-                    "{}\nCancelled by user\n" "".format(datetime.now()),
+                    "{}\nCancelled by user\n".format(datetime.now()),
                 ]
             else:
                 logger.debug("lost {}".format(id_))
                 # no job_id but still cancel, eg when pending
                 status, log_msg = [
                     "failed",
-                    "{}\nCancelled by user, "
-                    "no job was running\n"
-                    "".format(datetime.now()),
+                    "{}\nCancelled by user, no job was running\n".format(
+                        datetime.now()
+                    ),
                 ]
             # updating status and log
             data = row.data
