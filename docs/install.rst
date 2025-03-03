@@ -23,7 +23,7 @@ installed during setup.
 :git:
 
 The source is available on `github <https://github.com/SINGROUP/Runner>`_,
-which can be installed as::
+which can be installed using `uv <https://docs.astral.sh/uv/>`_ as::
 
     $ git clone https://github.com/SINGROUP/Runner.git
     $ cd Runner
